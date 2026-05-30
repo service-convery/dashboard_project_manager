@@ -1,0 +1,9 @@
+{
+  "name": "convery-dashboards",
+  "version": "1.0.0",
+  "description": "Hub multi-cliente di dashboard ClickUp (Pirelli + altri). Deploy su Vercel.",
+  "private": true,
+  "engines": {
+    "node": "20.x"
+  }
+}
