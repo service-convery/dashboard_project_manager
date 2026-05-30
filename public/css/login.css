@@ -1,0 +1,159 @@
+:root {
+  color-scheme: light;
+  --primary: #3333FF;
+  --primary-light: #191980;
+  --primary-dark: #030330;
+  --accent-subtle: #D6D6FF;
+  --bg: #FFFFFF;
+  --muted: #EEF0F4;
+  --border: #D8DCE4;
+  --border-light: #E8ECF2;
+  --text: #1A1A2E;
+  --text-secondary: #5A6178;
+  --text-muted: #9098A8;
+  --error: #D94452;
+  --success: #2E9E5A;
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
+  --r-md: 8px; --r-lg: 12px; --r-full: 9999px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--muted); color: var(--text); min-height: 100vh; }
+body {
+  font-family: "Red Hat Display", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--bg);
+  border-radius: var(--r-lg);
+  padding: 32px;
+  box-shadow: var(--shadow-lg);
+}
+.logo { display: flex; justify-content: center; margin-bottom: 24px; }
+.logo svg { height: 24px; width: auto; }
+h1 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  text-align: center;
+  margin: 0 0 4px 0;
+}
+.subtitle {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 0 0 24px 0;
+}
+.form-row { margin-bottom: 14px; }
+label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+input {
+  appearance: none;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(51, 51, 255, 0.12);
+}
+.btn {
+  appearance: none;
+  width: 100%;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 16px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.15s ease;
+}
+.btn:hover { background: var(--primary-light); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
+.btn.btn-ghost:hover { background: var(--muted); color: var(--primary-dark); }
+.error {
+  display: none;
+  background: #FDE6E9;
+  color: #B33240;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  font-size: 12px;
+  margin-bottom: 14px;
+  border-left: 3px solid var(--error);
+}
+.error.visible { display: block; }
+.hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 16px;
+  line-height: 1.5;
+}
+.toggle-link {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: underline;
+}
+.toggle-link:hover { color: var(--primary-light); }
+.spinner {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  margin-right: 6px;
+  animation: spin 0.7s linear infinite;
+  vertical-align: -1px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.client-link {
+  display: block;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  background: var(--muted);
+  border-radius: var(--r-md);
+  color: var(--primary-dark);
+  text-decoration: none;
+  font-weight: 500;
+  transition: background 0.15s;
+}
+.client-link:hover { background: var(--accent-subtle); }
+.session-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--success);
+  margin-bottom: 12px;
+}
+.session-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }

@@ -2,5 +2,11 @@
   "pirelli": {
     "name": "Pirelli.com",
     "listId": "901202068602"
+  },
+  "kiboko": {
+    "name": "Kiboko",
+    "listId": "901216775998",
+    "pacchettoOre": { "ore": 20, "periodo": "annuale" },
+    "dataInizio": "2026-01-01"
   }
 }

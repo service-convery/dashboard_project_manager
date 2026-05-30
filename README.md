@@ -13,8 +13,20 @@ api/logout.js           Pulisce il cookie
 api/me.js               Ritorna sessione + clienti accessibili
 lib/session.js          Sign/verify cookie con crypto built-in (zero dipendenze)
 config/clients.json     Elenco clienti {slug, name, listId} — versionato col repo
-public/index.html       Landing con form di login
-public/dashboard.html   La dashboard
+public/index.html       Landing con form di login (solo markup; CSS e JS separati)
+public/dashboard.html   La dashboard (solo markup; CSS e JS sono in file separati)
+public/css/login.css      Stile della pagina di login
+public/css/dashboard.css  Stile della dashboard
+public/js/login.js        Logica login/picker clienti (modulo ES singolo)
+public/js/               Logica dashboard, suddivisa in moduli ES:
+  config.js                costanti (slug, endpoint, status, paginazione)
+  state.js                 stato mutabile condiviso + salute fonti dati
+  format.js                helper puri (date, ore, escape, status)
+  ui.js                    helper DOM di base (errori, overlay loading)
+  api.js                   proxy ClickUp: fetch, retry, paginazione, le 4 fonti
+  charts.js                grafici Chart.js + snapshot per la stampa
+  render.js                rendering DOM (salute, diagnostica, KPI, tabella)
+  dashboard.js             entry point: orchestrazione, listener, bootstrap
 vercel.json             Rewrite /d/:slug → /dashboard.html + security headers
 package.json            Node 20
 ```

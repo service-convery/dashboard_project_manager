@@ -12,11 +12,18 @@ module.exports = (req, res) => {
     return res.status(401).json({ authenticated: false });
   }
 
+  // Campi pubblici per il client: name + config pacchetto ore. Il listId resta server-side.
+  const pub = (slug, c) => ({
+    slug,
+    name: c.name,
+    pacchettoOre: c.pacchettoOre || null,
+    dataInizio: c.dataInizio || null
+  });
   let clients;
   if (s.role === 'admin') {
-    clients = Object.entries(CLIENTS).map(([slug, c]) => ({ slug, name: c.name }));
+    clients = Object.entries(CLIENTS).map(([slug, c]) => pub(slug, c));
   } else if (s.slug && CLIENTS[s.slug]) {
-    clients = [{ slug: s.slug, name: CLIENTS[s.slug].name }];
+    clients = [pub(s.slug, CLIENTS[s.slug])];
   } else {
     clients = [];
   }
