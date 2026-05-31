@@ -8,10 +8,12 @@ export const state = {
   weekOffset: 0,        // 0 = settimana corrente, -1 = prec, +1 = succ
   allTasksCache: null,  // i task della lista cambiano poco; li riusiamo tra settimane
   estimatesCache: null, // Map<task_id, time_estimate_ms> — non dipende dalla settimana
+  teamMembersCache: null, // [{id, username}] membri del workspace: copre TUTTI i logger, non solo gli assegnatari
   estimatesDiag: { requested: 0, succeeded: 0, withEstimate: 0, errors: [], rawSample: null, parsedSample: null, sampleTaskId: null }, // diagnostica per fetchEstimates
   hoursChart: null,
   statusChart: null,
   hoursPkgChart: null,   // grafico della vista "Consumo ore"
+  hoursUsersChart: null, // grafico "Per utente" nella vista "Consumo ore"
   clientConfig: null,    // config del cliente corrente (name, pacchettoOre, dataInizio)
   // Filtro tabella: "week" (solo task con scadenza nella settimana) | "all" (tutti i task aperti).
   // Salvato in localStorage per persistere tra le aperture dell'artefatto.

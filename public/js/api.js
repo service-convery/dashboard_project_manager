@@ -423,11 +423,32 @@ export async function fetchEntries(allTasks, mon, weekEnd){
   return merged;
 }
 
+// Elenco dei membri del workspace (id + username), cachato. Serve a interrogare le
+// time-entry di TUTTI gli utenti che hanno loggato ore, non solo degli assegnatari
+// dei task. Se la chiamata fallisce ritorna [] (si ricade sugli assegnatari).
+export async function fetchTeamMembers(){
+  if (state.teamMembersCache) return state.teamMembersCache;
+  try {
+    const d = unwrap(await cuFetch("team-members", {}));
+    const members = (d && Array.isArray(d.members)) ? d.members : [];
+    state.teamMembersCache = members;
+    return members;
+  } catch (e) {
+    console.warn("fetchTeamMembers fallita:", e);
+    return [];
+  }
+}
+
 // Variante di fetchEntries per un range arbitrario (es. dataInizio → oggi), usata
 // dalla vista "Consumo ore". Non tocca lo stato `health` della vista settimanale.
 // Ritorna { entries, failed, total } con le entries dedupate per id.
+// L'universo di assignee interrogati è l'insieme di TUTTI i membri del workspace
+// (così catturiamo chiunque abbia loggato ore sui task della lista, non solo gli
+// assegnatari), unito agli assegnatari dei task come fallback (es. guest non in /team).
 export async function fetchEntriesRange(allTasks, start, end){
   const userIds = new Set();
+  const members = await fetchTeamMembers();
+  members.forEach(m => { if (m && m.id != null) userIds.add(m.id); });
   allTasks.forEach(t => {
     if (Array.isArray(t.assignees)) {
       t.assignees.forEach(a => { if (a && a.id != null) userIds.add(a.id); });
