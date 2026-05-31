@@ -5,9 +5,14 @@
 import { MONTHS } from "./config.js";
 import { state } from "./state.js";
 import { fetchTasks, fetchEntriesRange } from "./api.js";
-import { escapeHtml } from "./format.js";
+import { escapeHtml, statusClass, initials } from "./format.js";
+import { aggregateByTask, aggregateByUser } from "./hours-aggregate.js";
 
 const HOUR_MS = 3600000;
+const USERS_DISCLAIMER =
+  "Le ore sono attribuite a chi ha materialmente tracciato il tempo. " +
+  "In base all'ambito dell'attività, uno stesso task può essere lavorato da più persone: " +
+  "la ripartizione per utente non indica quindi la titolarità dell'attività.";
 let loaded = false; // lazy load: la vista si carica una sola volta
 
 // --- formattazione ---
@@ -66,6 +71,9 @@ export async function loadHoursView(){
     const { entries, failed, total } = await fetchEntriesRange(tasks, rangeStart, now);
 
     const ourEntries = entries.filter(e => e && e.task && taskIds.has(e.task.id));
+    const taskById = new Map(tasks.map(t => [t.id, t]));
+    const taskRows = aggregateByTask(ourEntries, taskById).rows;
+    const userRows = aggregateByUser(ourEntries);
 
     // consumo per mese (chiave "year-month")
     const consumedByMonth = new Map();
@@ -101,7 +109,7 @@ export async function loadHoursView(){
     });
 
     render(container, {
-      pkg, startDate, hasPkg, rows,
+      pkg, startDate, hasPkg, rows, taskRows, userRows,
       consumedTotalMs, accruedTotalMs,
       saldoMs: accruedTotalMs - consumedTotalMs,
       partial: failed > 0 && failed < total
@@ -120,8 +128,88 @@ function kpiCard(label, value, sub, extraClass){
     '<div class="sub">' + escapeHtml(sub) + '</div></div>';
 }
 
+// Markup della tabella mensile (senza card/header: vive in un pannello tab).
+function monthlyDetailTableHtml(rows, hasPkg){
+  let h = '<div class="table-wrap"><table class="tasks"><thead><tr><th>Mese</th>';
+  if (hasPkg) h += '<th style="text-align:right;">Maturate</th>';
+  h += '<th style="text-align:right;">Consumate</th>';
+  if (hasPkg) h += '<th style="text-align:right;">Saldo mese</th><th style="text-align:right;">Saldo cumul.</th>';
+  h += '</tr></thead><tbody>';
+  if (!rows.length) {
+    h += '<tr><td colspan="' + (hasPkg ? 5 : 2) + '" class="empty">Nessun dato nel periodo.</td></tr>';
+  } else {
+    rows.slice().reverse().forEach(r => {   // più recente in alto
+      h += '<tr><td>' + fmtMonthYear(r.month, r.year) + '</td>';
+      if (hasPkg) h += '<td style="text-align:right;">' + (r.accruedMs ? fmtSignedMs(r.accruedMs) : "—") + '</td>';
+      h += '<td style="text-align:right;">' + fmtHoursMs(r.consumedMs) + '</td>';
+      if (hasPkg) {
+        h += '<td style="text-align:right;" class="' + (r.saldoMese < 0 ? "saldo-neg" : "") + '">' + fmtSignedMs(r.saldoMese) + '</td>' +
+             '<td style="text-align:right;" class="' + (r.cumulMs < 0 ? "saldo-neg" : "saldo-pos") + '">' + fmtSignedMs(r.cumulMs) + '</td>';
+      }
+      h += '</tr>';
+    });
+  }
+  h += '</tbody></table></div>';
+  return h;
+}
+
+// Markup della tabella "Per task": una riga per task con ore tracciate, ordinate desc.
+function taskTableHtml(rows){
+  let h = '<div class="table-wrap"><table class="tasks"><thead><tr>' +
+    '<th>Task</th><th>Stato</th><th>Assegnatari</th>' +
+    '<th style="text-align:right;">Ore</th><th style="text-align:right;">%</th>' +
+    '</tr></thead><tbody>';
+  if (!rows.length) {
+    h += '<tr><td colspan="5" class="empty">Nessuna ora tracciata nel periodo.</td></tr>';
+  } else {
+    rows.forEach(r => {
+      const statusRaw = (r.status && typeof r.status === "object") ? r.status.status : r.status;
+      const stHtml = '<span class="badge ' + statusClass(statusRaw) + '">' + escapeHtml(statusRaw || "—") + '</span>';
+      const nameHtml = r.url
+        ? '<a href="' + escapeHtml(r.url) + '" target="_blank" rel="noopener">' + escapeHtml(r.name) + '</a>'
+        : escapeHtml(r.name);
+      const assHtml = r.assignees.length
+        ? '<div class="assignees">' + r.assignees.map(a =>
+            '<span class="avatar" title="' + escapeHtml(a.username || "") + '">' + escapeHtml(initials(a.username)) + '</span>'
+          ).join("") + '</div>'
+        : '<span style="color:var(--text-muted);font-size:12px;">—</span>';
+      h += '<tr><td><div class="task-name">' + nameHtml + '</div></td>' +
+        '<td>' + stHtml + '</td>' +
+        '<td>' + assHtml + '</td>' +
+        '<td style="text-align:right;">' + fmtHoursMs(r.ms) + '</td>' +
+        '<td style="text-align:right;">' + Math.round(r.pct) + '%</td></tr>';
+    });
+  }
+  h += '</tbody></table></div>';
+  return h;
+}
+
+// Gestisce lo switch tra i pannelli di dettaglio. Chiama onFirstUsers() la prima
+// volta che si apre il pannello "Per utente" (render lazy del canvas).
+function setupDetailTabs(container, onFirstUsers){
+  const tabs = container.querySelectorAll(".detail-tab");
+  const panels = {
+    mese:   container.querySelector("#detailMese"),
+    task:   container.querySelector("#detailTask"),
+    utente: container.querySelector("#detailUtente")
+  };
+  let usersShown = false;
+  tabs.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.tab;
+      tabs.forEach(b => {
+        const on = b === btn;
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-selected", on ? "true" : "false");
+      });
+      Object.entries(panels).forEach(([k, el]) => { if (el) el.classList.toggle("hide", k !== key); });
+      if (key === "utente" && !usersShown) { usersShown = true; onFirstUsers(); }
+    });
+  });
+}
+
 function render(container, m){
-  const { pkg, startDate, hasPkg, rows, consumedTotalMs, accruedTotalMs, saldoMs, partial } = m;
+  const { pkg, startDate, hasPkg, rows, taskRows, userRows, consumedTotalMs, accruedTotalMs, saldoMs, partial } = m;
   let html = "";
 
   html += '<div class="hours-head"><h3>Consumo pacchetto ore</h3>';
@@ -161,27 +249,20 @@ function render(container, m){
   }
   html += '</div>';
 
-  html += '<div class="card"><div class="section-header"><h3>Dettaglio mensile</h3></div><div class="table-wrap">' +
-    '<table class="tasks"><thead><tr><th>Mese</th>';
-  if (hasPkg) html += '<th style="text-align:right;">Maturate</th>';
-  html += '<th style="text-align:right;">Consumate</th>';
-  if (hasPkg) html += '<th style="text-align:right;">Saldo mese</th><th style="text-align:right;">Saldo cumul.</th>';
-  html += '</tr></thead><tbody>';
-  if (!rows.length) {
-    html += '<tr><td colspan="' + (hasPkg ? 5 : 2) + '" class="empty">Nessun dato nel periodo.</td></tr>';
-  } else {
-    rows.slice().reverse().forEach(r => {   // più recente in alto
-      html += '<tr><td>' + fmtMonthYear(r.month, r.year) + '</td>';
-      if (hasPkg) html += '<td style="text-align:right;">' + (r.accruedMs ? fmtSignedMs(r.accruedMs) : "—") + '</td>';
-      html += '<td style="text-align:right;">' + fmtHoursMs(r.consumedMs) + '</td>';
-      if (hasPkg) {
-        html += '<td style="text-align:right;" class="' + (r.saldoMese < 0 ? "saldo-neg" : "") + '">' + fmtSignedMs(r.saldoMese) + '</td>' +
-                '<td style="text-align:right;" class="' + (r.cumulMs < 0 ? "saldo-neg" : "saldo-pos") + '">' + fmtSignedMs(r.cumulMs) + '</td>';
-      }
-      html += '</tr>';
-    });
-  }
-  html += '</tbody></table></div></div>';
+  html += '<div class="card hours-detail">' +
+    '<div class="section-header"><h3>Dettaglio</h3>' +
+      '<div class="filter-toggle detail-tabs" role="tablist" aria-label="Dettaglio consumo">' +
+        '<button class="detail-tab active" data-tab="mese" role="tab" aria-selected="true" type="button">Per mese</button>' +
+        '<button class="detail-tab" data-tab="task" role="tab" aria-selected="false" type="button">Per task</button>' +
+        '<button class="detail-tab" data-tab="utente" role="tab" aria-selected="false" type="button">Per utente</button>' +
+      '</div></div>' +
+    '<div id="detailMese" class="detail-panel">' + monthlyDetailTableHtml(rows, hasPkg) + '</div>' +
+    '<div id="detailTask" class="detail-panel hide">' + taskTableHtml(taskRows) + '</div>' +
+    '<div id="detailUtente" class="detail-panel hide">' +
+      '<div class="chart-wrap chart-wrap-users"><canvas id="hoursUsersChart"></canvas></div>' +
+      '<p class="hours-note">' + escapeHtml(USERS_DISCLAIMER) + '</p>' +
+      '<p class="hours-note">Copre gli utenti assegnatari sui task di questa lista.</p>' +
+    '</div></div>';
 
   if (partial) {
     html += '<div class="hours-note">Dati parziali: alcune chiamate a ClickUp non hanno risposto. Ricarica per riprovare.</div>';
@@ -190,6 +271,14 @@ function render(container, m){
 
   container.innerHTML = html;
   renderChart(rows, (hasPkg && pkg.periodo === "mensile") ? pkg.ore : null);
+  setupDetailTabs(container, () => {
+    if (!userRows.length) {
+      const w = container.querySelector("#detailUtente .chart-wrap-users");
+      if (w) w.innerHTML = '<p class="empty" style="padding:24px;text-align:center;">Nessuna ora tracciata nel periodo.</p>';
+      return;
+    }
+    renderUsersChart(userRows);
+  });
 }
 
 function renderChart(rows, monthlyAllowanceH){
@@ -228,6 +317,41 @@ function renderChart(rows, monthlyAllowanceH){
       scales: {
         x: { grid: { display: false }, ticks: { color: "#5A6178", font: { size: 11 } } },
         y: { beginAtZero: true, ticks: { color: "#5A6178", font: { size: 11 }, callback: (v) => v + "h" }, grid: { color: "#E8ECF2" } }
+      }
+    }
+  });
+}
+
+// Grafico a barre ORIZZONTALI delle ore per utente ClickUp (indexAxis: "y").
+function renderUsersChart(users){
+  const ctx = document.getElementById("hoursUsersChart");
+  if (!ctx) return;
+  if (state.hoursUsersChart) state.hoursUsersChart.destroy();
+  // Altezza proporzionale al numero di utenti (le barre orizzontali crescono in verticale).
+  const wrap = ctx.parentElement;
+  if (wrap) wrap.style.height = Math.max(160, users.length * 38) + "px";
+
+  const labels = users.map(u => u.name);
+  const data = users.map(u => +(u.ms / HOUR_MS).toFixed(2));
+  const colors = users.map(u => u.color || "#3333FF");
+
+  state.hoursUsersChart = new Chart(ctx, {
+    type: "bar",
+    data: { labels, datasets: [{ label: "Ore", data, backgroundColor: colors, borderRadius: 4, maxBarThickness: 28 }] },
+    options: {
+      indexAxis: "y",
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "#FFFFFF", titleColor: "#1A1A2E", bodyColor: "#5A6178",
+          borderColor: "#D8DCE4", borderWidth: 1, padding: 10,
+          callbacks: { label: (c) => c.parsed.x + " h" }
+        }
+      },
+      scales: {
+        x: { beginAtZero: true, ticks: { color: "#5A6178", font: { size: 11 }, callback: (v) => v + "h" }, grid: { color: "#E8ECF2" } },
+        y: { grid: { display: false }, ticks: { color: "#5A6178", font: { size: 11 } } }
       }
     }
   });
