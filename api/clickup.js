@@ -16,6 +16,10 @@
 //
 // endpoint=task → ClickUp GET /task/{task_id}
 //   task_id (obbligatorio)
+//
+// endpoint=team-members → ClickUp GET /team
+//   nessun parametro; ritorna { members: [{ id, username }] } per il team configurato.
+//   Serve a interrogare le ore di TUTTI i membri (chi ha loggato), non solo gli assegnatari.
 
 const session = require('../lib/session');
 const CLIENTS = require('../config/clients.json');
@@ -104,13 +108,30 @@ module.exports = async (req, res) => {
     // e conosce un task_id può chiederne il dettaglio. Il PAT è scoped al tuo account
     // ClickUp, quindi vede solo task a cui tu hai accesso.
     url = CLICKUP_BASE + '/task/' + encodeURIComponent(taskId);
+  } else if (endpoint === 'team-members') {
+    const teamId = process.env.CLICKUP_TEAM_ID;
+    if (!teamId) return res.status(500).json({ error: 'CLICKUP_TEAM_ID non configurato' });
+    url = CLICKUP_BASE + '/team';
   } else {
-    return res.status(400).json({ error: 'Endpoint sconosciuto. Usa: tasks | time-entries | task' });
+    return res.status(400).json({ error: 'Endpoint sconosciuto. Usa: tasks | time-entries | task | team-members' });
   }
 
   const r = await callClickUp(url);
+
+  // team-members: riduco la risposta di /team ai soli membri del team configurato
+  // (id + username). Non espongo l'intero payload dei workspace al browser.
+  let body = r.body;
+  if (endpoint === 'team-members' && r.status === 200 && body && Array.isArray(body.teams)) {
+    const teamId = String(process.env.CLICKUP_TEAM_ID);
+    const team = body.teams.find(t => String(t.id) === teamId) || body.teams[0];
+    const members = ((team && team.members) || [])
+      .map(m => ({ id: m.user && m.user.id, username: m.user && m.user.username }))
+      .filter(x => x.id != null);
+    body = { members };
+  }
+
   // Cache breve lato Vercel: 30 secondi è un buon compromesso (il dashboard ricarica
   // ogni volta che lo apri, ma se più persone aprono nello stesso minuto risparmiamo).
   res.setHeader('Cache-Control', 'private, max-age=30');
-  res.status(r.status).json(r.body);
+  res.status(r.status).json(body);
 };

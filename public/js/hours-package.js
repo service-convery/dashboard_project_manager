@@ -261,13 +261,13 @@ function render(container, m){
     '<div id="detailUtente" class="detail-panel hide">' +
       '<div class="chart-wrap chart-wrap-users"><canvas id="hoursUsersChart"></canvas></div>' +
       '<p class="hours-note">' + escapeHtml(USERS_DISCLAIMER) + '</p>' +
-      '<p class="hours-note">Copre gli utenti assegnatari sui task di questa lista.</p>' +
+      '<p class="hours-note">Include tutti gli utenti che hanno tracciato ore sui task di questa lista.</p>' +
     '</div></div>';
 
   if (partial) {
     html += '<div class="hours-note">Dati parziali: alcune chiamate a ClickUp non hanno risposto. Ricarica per riprovare.</div>';
   }
-  html += '<div class="hours-note">Conteggio basato sulle time-entry dei task di questa lista, per gli assegnatari presenti sui task.</div>';
+  html += '<div class="hours-note">Conteggio basato sulle time-entry dei task di questa lista (tutti gli utenti che hanno tracciato tempo).</div>';
 
   container.innerHTML = html;
   renderChart(rows, (hasPkg && pkg.periodo === "mensile") ? pkg.ore : null);
