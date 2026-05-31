@@ -518,6 +518,12 @@ td.saldo-pos { color: var(--primary-dark); font-weight: 600; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .hide { display: none !important; }
 
+/* === Vista Consumo ore: blocco dettaglio a tab === */
+.hours-detail .section-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.hours-detail .detail-tabs { margin-left: auto; }
+.hours-detail .detail-panel { margin-top: 4px; }
+.chart-wrap-users { position: relative; min-height: 160px; }
+
 /* Immagini snapshot dei grafici per la stampa: nascoste a schermo, mostrate in print */
 .chart-print { display: none; width: 100%; height: 100%; object-fit: contain; }
 
