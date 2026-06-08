@@ -17,7 +17,7 @@ const USERS_DISCLAIMER =
 let loaded = false; // lazy load: la vista si carica una sola volta
 
 // Vero se è attiva una vista tag diversa da "Tutti" (per le note di trasparenza).
-function cfg_hasActiveView(){
+function hasActiveView(){
   const cfg = state.clientConfig || {};
   return Array.isArray(cfg.tagViews) && cfg.tagViews.length > 0 && state.activeView !== "__all__";
 }
@@ -71,7 +71,8 @@ export async function loadHoursView(){
     const rangeStart = startDate || new Date(now.getFullYear(), now.getMonth() - 11, 1);
     const { entries, failed, total } = await fetchEntriesRange(tasks, rangeStart, now);
 
-    // Cache per ri-renderizzare al cambio vista senza nuova fetch.
+    // Cache per ri-renderizzare al cambio vista senza nuova fetch. Invariante: rerenderHoursView
+    // è no-op finché `loaded` è false, quindi una cache stantia non viene mai mostrata.
     state.hoursData = { tasks, entries, rangeStart, now, partial: failed > 0 && failed < total };
     renderHoursFromCache();
   } catch (e) {
@@ -85,6 +86,22 @@ export async function loadHoursView(){
 export function rerenderHoursView(){
   if (!loaded || !state.hoursData) return;
   renderHoursFromCache();
+}
+
+// Aggrega le ore consumate per mese (chiave "year-month") da una lista di time-entry.
+function aggregateByMonth(entries){
+  const byMonth = new Map();
+  let totalMs = 0;
+  entries.forEach(e => {
+    const startMs = Number(e.start);
+    if (isNaN(startMs)) return;
+    const ms = Number(e.duration_ms) || 0;
+    const d = new Date(startMs);
+    const key = d.getFullYear() + "-" + d.getMonth();
+    byMonth.set(key, (byMonth.get(key) || 0) + ms);
+    totalMs += ms;
+  });
+  return { byMonth, totalMs };
 }
 
 // Calcola il modello (globale per pacchetto/saldo, filtrato per il consumo) e renderizza.
@@ -106,25 +123,9 @@ function renderHoursFromCache(){
   const idsView = new Set(tasksView.map(t => t.id));
   const entriesView = entriesAll.filter(e => idsView.has(e.task.id));
 
-  // consumo mensile globale (chiave "year-month")
-  const consumedByMonthAll = new Map();
-  let consumedTotalMs = 0;
-  entriesAll.forEach(e => {
-    const startMs = Number(e.start); if (isNaN(startMs)) return;
-    const ms = Number(e.duration_ms) || 0;
-    const d = new Date(startMs); const key = d.getFullYear() + "-" + d.getMonth();
-    consumedByMonthAll.set(key, (consumedByMonthAll.get(key) || 0) + ms);
-    consumedTotalMs += ms;
-  });
-
-  // consumo mensile FILTRATO (per il grafico)
-  const consumedByMonthView = new Map();
-  entriesView.forEach(e => {
-    const startMs = Number(e.start); if (isNaN(startMs)) return;
-    const ms = Number(e.duration_ms) || 0;
-    const d = new Date(startMs); const key = d.getFullYear() + "-" + d.getMonth();
-    consumedByMonthView.set(key, (consumedByMonthView.get(key) || 0) + ms);
-  });
+  // Consumo mensile: globale (pacchetto/saldo/Per mese) e filtrato (grafico).
+  const { byMonth: consumedByMonthAll, totalMs: consumedTotalMs } = aggregateByMonth(entriesAll);
+  const { byMonth: consumedByMonthView } = aggregateByMonth(entriesView);
 
   const months = monthList(rangeStart, now);
   const oreMs = pkg ? pkg.ore * HOUR_MS : 0;
@@ -283,7 +284,7 @@ function render(container, m){
   }
 
   html += '<div class="card"><div class="section-header"><h3>Ore consumate per mese</h3></div>';
-  if (cfg_hasActiveView()) {
+  if (hasActiveView()) {
     html += '<p class="hours-note" style="margin:8px 16px 0;">Il grafico riflette la vista tag selezionata; il blocco pacchetto e la tab "Per mese" restano sull\'intero progetto.</p>';
   }
   html += '<div class="chart-wrap"><canvas id="hoursPkgChart"></canvas></div>';
