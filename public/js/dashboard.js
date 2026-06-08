@@ -4,9 +4,10 @@ import { state, resetHealth } from "./state.js";
 import { fmtDay, fmtDayYear, getWeekRange } from "./format.js";
 import { clearError, setLoading } from "./ui.js";
 import { fetchTasks, fetchEntries, fetchClosedThisWeek, fetchEstimates } from "./api.js";
-import { renderHealth, renderDiag, render, renderTable } from "./render.js";
+import { renderHealth, renderDiag, render, renderTable, rerender } from "./render.js";
 import { snapshotChartsForPrint } from "./charts.js";
-import { loadHoursView } from "./hours-package.js";
+import { loadHoursView, rerenderHoursView } from "./hours-package.js";
+import { viewStorageKey } from "./tag-views.mjs";
 
 async function load(){
   clearError();
@@ -71,7 +72,9 @@ document.getElementById("filterWeek").addEventListener("click", () => setTableFi
 document.getElementById("filterAll").addEventListener("click", () => setTableFilter("all"));
 
 // === Tab: Settimanale / Consumo ore ===
+let currentTab = "weekly";
 function switchView(view){
+  currentTab = (view === "weekly") ? "weekly" : "hours";
   const weekly = view === "weekly";
   document.getElementById("viewWeekly").classList.toggle("hide", !weekly);
   document.getElementById("viewHours").classList.toggle("hide", weekly);
@@ -83,6 +86,58 @@ function switchView(view){
 }
 document.getElementById("tabWeekly").addEventListener("click", () => switchView("weekly"));
 document.getElementById("tabHours").addEventListener("click", () => switchView("hours"));
+
+// === Selettore "Vista per tag" (condiviso tra i due tab) ===
+// Costruito dopo che state.clientConfig è noto. Se non ci sono tagViews resta nascosto.
+function buildViewSelector(){
+  const bar = document.getElementById("viewSelectorBar");
+  if (!bar) return;
+  const cfg = state.clientConfig || {};
+  const views = Array.isArray(cfg.tagViews) ? cfg.tagViews : [];
+  if (views.length === 0) { bar.classList.add("hide"); return; }
+
+  // Ripristina la vista salvata (validata contro la config), fallback a "Tutti".
+  let saved = "__all__";
+  try {
+    const v = window.localStorage && window.localStorage.getItem(viewStorageKey(SLUG));
+    if (v === "__all__") saved = "__all__";
+    else { const idx = Number(v); if (Number.isInteger(idx) && idx >= 0 && idx < views.length) saved = String(idx); }
+  } catch (e) { /* localStorage non disponibile */ }
+  state.activeView = saved;
+
+  const group = bar.querySelector(".view-selector-group");
+  group.innerHTML = "";
+  const makeBtn = (label, value) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("role", "tab");
+    b.dataset.view = value;
+    b.textContent = label;
+    const on = state.activeView === value;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-selected", String(on));
+    b.addEventListener("click", () => setActiveView(value));
+    return b;
+  };
+  group.appendChild(makeBtn("Tutti", "__all__"));
+  views.forEach((v, i) => group.appendChild(makeBtn(v.label || ("Vista " + (i + 1)), String(i))));
+  bar.classList.remove("hide");
+}
+
+function setActiveView(value){
+  state.activeView = value;
+  try { window.localStorage && window.localStorage.setItem(viewStorageKey(SLUG), value); }
+  catch (e) { /* ignoro */ }
+  const group = document.querySelector("#viewSelectorBar .view-selector-group");
+  if (group) group.querySelectorAll("button").forEach(b => {
+    const on = b.dataset.view === value;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-selected", String(on));
+  });
+  // Ri-renderizza solo il tab visibile (nessuna nuova fetch).
+  if (currentTab === "hours") rerenderHoursView();
+  else rerender();
+}
 
 // Export PDF: snapshot dei chart, poi window.print() (lo stylesheet @media print
 // gestisce A4 verticale, layout compatto e visualizza le img invece dei canvas).
@@ -174,6 +229,7 @@ async function bootstrap(){
       document.getElementById("clientSwitch").classList.remove("hide");
     }
 
+    buildViewSelector();
     load();
   } catch (e) {
     document.getElementById("errorBox").classList.remove("hide");
