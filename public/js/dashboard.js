@@ -74,7 +74,7 @@ document.getElementById("filterAll").addEventListener("click", () => setTableFil
 // === Tab: Settimanale / Consumo ore ===
 let currentTab = "weekly";
 function switchView(view){
-  currentTab = (view === "weekly") ? "weekly" : "hours";
+  currentTab = view;
   const weekly = view === "weekly";
   document.getElementById("viewWeekly").classList.toggle("hide", !weekly);
   document.getElementById("viewHours").classList.toggle("hide", weekly);
@@ -88,6 +88,12 @@ document.getElementById("tabWeekly").addEventListener("click", () => switchView(
 document.getElementById("tabHours").addEventListener("click", () => switchView("hours"));
 
 // === Selettore "Vista per tag" (condiviso tra i due tab) ===
+// Applica lo stato attivo/selezionato a un pulsante del selettore vista.
+function applyViewBtnState(btn, on){
+  btn.classList.toggle("active", on);
+  btn.setAttribute("aria-selected", String(on));
+}
+
 // Costruito dopo che state.clientConfig è noto. Se non ci sono tagViews resta nascosto.
 function buildViewSelector(){
   const bar = document.getElementById("viewSelectorBar");
@@ -106,6 +112,7 @@ function buildViewSelector(){
   state.activeView = saved;
 
   const group = bar.querySelector(".view-selector-group");
+  if (!group) return;
   group.innerHTML = "";
   const makeBtn = (label, value) => {
     const b = document.createElement("button");
@@ -113,9 +120,7 @@ function buildViewSelector(){
     b.setAttribute("role", "tab");
     b.dataset.view = value;
     b.textContent = label;
-    const on = state.activeView === value;
-    b.classList.toggle("active", on);
-    b.setAttribute("aria-selected", String(on));
+    applyViewBtnState(b, state.activeView === value);
     b.addEventListener("click", () => setActiveView(value));
     return b;
   };
@@ -130,9 +135,7 @@ function setActiveView(value){
   catch (e) { /* ignoro */ }
   const group = document.querySelector("#viewSelectorBar .view-selector-group");
   if (group) group.querySelectorAll("button").forEach(b => {
-    const on = b.dataset.view === value;
-    b.classList.toggle("active", on);
-    b.setAttribute("aria-selected", String(on));
+    applyViewBtnState(b, b.dataset.view === value);
   });
   // Ri-renderizza solo il tab visibile (nessuna nuova fetch).
   if (currentTab === "hours") rerenderHoursView();
