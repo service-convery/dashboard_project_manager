@@ -18,8 +18,13 @@ export const state = {
   // Filtro tabella: "week" (solo task con scadenza nella settimana) | "all" (tutti i task aperti).
   // Salvato in localStorage per persistere tra le aperture dell'artefatto.
   tableFilter: "week",
+  // Vista tag attiva: "__all__" (default) | indice numerico (in stringa) di state.clientConfig.tagViews.
+  // Validata/ripristinata da localStorage in dashboard.js (buildViewSelector), dopo che clientConfig è noto.
+  activeView: "__all__",
   // Cache dei dati renderizzati: serve per rifiltrare la tabella senza richiamare l'API.
   lastRender: null,
+  // Input grezzi (non filtrati) dell'ultimo render del tab Settimanale: per ri-renderizzare al cambio vista.
+  lastRenderInputs: null,
 };
 
 try {
