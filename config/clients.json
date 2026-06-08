@@ -1,7 +1,12 @@
 {
   "pirelli": {
     "name": "Pirelli.com",
-    "listId": "901202068602"
+    "listId": "901202068602",
+    "tagViews": [
+      { "label": "Frontend", "tags": ["frontend", "ui"] },
+      { "label": "Bug", "tags": ["bug"] },
+      { "label": "Backend", "tags": ["api", "db"] }
+    ]
   },
   "kiboko": {
     "name": "Kiboko",
