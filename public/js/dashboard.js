@@ -72,9 +72,7 @@ document.getElementById("filterWeek").addEventListener("click", () => setTableFi
 document.getElementById("filterAll").addEventListener("click", () => setTableFilter("all"));
 
 // === Tab: Settimanale / Consumo ore ===
-let currentTab = "weekly";
 function switchView(view){
-  currentTab = view;
   const weekly = view === "weekly";
   document.getElementById("viewWeekly").classList.toggle("hide", !weekly);
   document.getElementById("viewHours").classList.toggle("hide", weekly);
@@ -137,9 +135,11 @@ function setActiveView(value){
   if (group) group.querySelectorAll("button").forEach(b => {
     applyViewBtnState(b, b.dataset.view === value);
   });
-  // Ri-renderizza solo il tab visibile (nessuna nuova fetch).
-  if (currentTab === "hours") rerenderHoursView();
-  else rerender();
+  // Aggiorna ENTRAMBI i tab dalla cache (nessuna nuova fetch): il selettore è condiviso,
+  // quindi il tab nascosto deve già riflettere la vista scelta quando vi si torna.
+  // Entrambe sono no-op se il rispettivo tab non è ancora stato renderizzato/caricato.
+  rerender();
+  rerenderHoursView();
 }
 
 // Export PDF: snapshot dei chart, poi window.print() (lo stylesheet @media print
