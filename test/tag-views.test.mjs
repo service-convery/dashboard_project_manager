@@ -60,3 +60,23 @@ test("resolveTagSet: out-of-range index falls back to union", () => {
 test("viewStorageKey is slug-scoped", () => {
   assert.equal(viewStorageKey("pirelli"), "pirelli-weekly:active-view:pirelli");
 });
+
+test("normalizeTag handles undefined", () => {
+  assert.equal(normalizeTag(undefined), "");
+});
+
+test("taskTagNames dedupes case-insensitively", () => {
+  const names = taskTagNames(task(["Bug", "BUG", "bug"]));
+  assert.equal(names.size, 1);
+  assert.ok(names.has("bug"));
+});
+
+test("taskMatchesTags: null/undefined tagSet matches everything (no view selected)", () => {
+  assert.equal(taskMatchesTags(task(["bug"]), null), true);
+  assert.equal(taskMatchesTags(task([]), undefined), true);
+});
+
+test("viewStorageKey handles empty/undefined slug", () => {
+  assert.equal(viewStorageKey(""), "pirelli-weekly:active-view:");
+  assert.equal(viewStorageKey(undefined), "pirelli-weekly:active-view:");
+});

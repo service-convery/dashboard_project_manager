@@ -43,7 +43,9 @@ export function resolveTagSet(tagViews, activeView){
   return new Set((v && Array.isArray(v.tags) ? v.tags : []).map(normalizeTag));
 }
 
-// Chiave localStorage per la vista attiva, scoping per cliente (stesso prefisso di table-filter).
+// Chiave localStorage per la vista attiva. Il prefisso "pirelli-weekly:" è il namespace
+// globale legacy dell'app (coerente con la chiave "pirelli-weekly:table-filter"); lo
+// scoping per-cliente avviene col suffisso slug, quindi clienti diversi non collidono.
 export function viewStorageKey(slug){
   return "pirelli-weekly:active-view:" + (slug || "");
 }
