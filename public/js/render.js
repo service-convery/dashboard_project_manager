@@ -3,6 +3,7 @@ import { EXCLUDED_STATUSES } from "./config.js";
 import { state, health, retryStats } from "./state.js";
 import { escapeHtml, fmtDay, fmtHours, initials, statusClass, isClosedStatus } from "./format.js";
 import { renderHoursChart, renderStatusChart } from "./charts.js";
+import { resolveTagSet, taskMatchesTags } from "./tag-views.mjs";
 
 export function renderHealth(){
   const row = document.getElementById("healthRow");
@@ -107,7 +108,22 @@ export function renderDiag(){
   box.innerHTML = html;
 }
 
+// Set di tag della vista attiva, derivato da config + state.activeView.
+function activeTagSet(){
+  const cfg = state.clientConfig || {};
+  return resolveTagSet(cfg.tagViews, state.activeView);
+}
+
 export function render(allTasks, entries, estimates, closedThisWeek, mon, sun){
+  // Salva gli input NON filtrati: il cambio vista re-renderizza ri-filtrando questi.
+  state.lastRenderInputs = { allTasks, entries, estimates, closedThisWeek, mon, sun };
+
+  // Filtro "alla sorgente": applico la vista tag a task aperti e completati.
+  // Tutto a valle (KPI, grafici, tabella, ore via taskIdSet) segue automaticamente.
+  const tagSet = activeTagSet();
+  allTasks = allTasks.filter(t => taskMatchesTags(t, tagSet));
+  closedThisWeek = (Array.isArray(closedThisWeek) ? closedThisWeek : []).filter(t => taskMatchesTags(t, tagSet));
+
   const taskIdSet = new Set(allTasks.map(t => t.id));
 
   // task aperti: escludi status "da fare", "completato" e altri stati di chiusura
@@ -315,4 +331,11 @@ export function renderTable(){
       '<td style="text-align:right;">' + hoursHtml + '</td>';
     body.appendChild(tr);
   });
+}
+
+// Ri-renderizza il tab Settimanale ri-filtrando gli ultimi input (cambio vista, niente fetch).
+export function rerender(){
+  const i = state.lastRenderInputs;
+  if (!i) return;
+  render(i.allTasks, i.entries, i.estimates, i.closedThisWeek, i.mon, i.sun);
 }
