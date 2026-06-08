@@ -363,6 +363,19 @@ table.tasks tr.task-closed .task-name a { color: var(--text-secondary); }
 }
 .filter-toggle button.active:hover { background: var(--primary-light); color: #fff; }
 .filter-toggle button + button { border-left: 1px solid var(--border); }
+.view-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+  flex-wrap: wrap;
+}
+.view-selector-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.view-selector-group { flex-wrap: wrap; }
 
 .legend {
   font-size: 11px;
