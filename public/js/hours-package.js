@@ -7,6 +7,7 @@ import { state } from "./state.js";
 import { fetchTasks, fetchEntriesRange } from "./api.js";
 import { escapeHtml, statusClass, initials } from "./format.js";
 import { aggregateByTask, aggregateByUser } from "./hours-aggregate.js";
+import { resolveTagSet, taskMatchesTags } from "./tag-views.mjs";
 
 const HOUR_MS = 3600000;
 const USERS_DISCLAIMER =
@@ -14,6 +15,12 @@ const USERS_DISCLAIMER =
   "In base all'ambito dell'attività, uno stesso task può essere lavorato da più persone: " +
   "la ripartizione per utente non indica quindi la titolarità dell'attività.";
 let loaded = false; // lazy load: la vista si carica una sola volta
+
+// Vero se è attiva una vista tag diversa da "Tutti" (per le note di trasparenza).
+function cfg_hasActiveView(){
+  const cfg = state.clientConfig || {};
+  return Array.isArray(cfg.tagViews) && cfg.tagViews.length > 0 && state.activeView !== "__all__";
+}
 
 // --- formattazione ---
 function fmtNum(h){
@@ -56,69 +63,103 @@ export async function loadHoursView(){
   const container = document.getElementById("viewHours");
   container.innerHTML = '<div class="hours-loading"><span class="spinner"></span> Caricamento consumo ore…</div>';
 
-  const cfg = state.clientConfig || {};
-  const pkg = cfg.pacchettoOre || null;          // { ore, periodo } | null
-  const startDate = parseDate(cfg.dataInizio);   // Date | null
-  const hasPkg = !!pkg && !!startDate;
-
   try {
     const tasks = await fetchTasks();            // cache condivisa con la vista settimanale
-    const taskIds = new Set(tasks.map(t => t.id));
-
     const now = new Date();
-    // Senza pacchetto/data: mostro comunque gli ultimi 12 mesi.
+    const cfg = state.clientConfig || {};
+    const startDate = parseDate(cfg.dataInizio);
     const rangeStart = startDate || new Date(now.getFullYear(), now.getMonth() - 11, 1);
     const { entries, failed, total } = await fetchEntriesRange(tasks, rangeStart, now);
 
-    const ourEntries = entries.filter(e => e && e.task && taskIds.has(e.task.id));
-    const taskById = new Map(tasks.map(t => [t.id, t]));
-    const taskRows = aggregateByTask(ourEntries, taskById).rows;
-    const userRows = aggregateByUser(ourEntries);
-
-    // consumo per mese (chiave "year-month")
-    const consumedByMonth = new Map();
-    let consumedTotalMs = 0;
-    ourEntries.forEach(e => {
-      const startMs = Number(e.start);
-      if (isNaN(startMs)) return;
-      const ms = Number(e.duration_ms) || 0;
-      const d = new Date(startMs);
-      const key = d.getFullYear() + "-" + d.getMonth();
-      consumedByMonth.set(key, (consumedByMonth.get(key) || 0) + ms);
-      consumedTotalMs += ms;
-    });
-
-    const months = monthList(rangeStart, now);
-    const oreMs = pkg ? pkg.ore * HOUR_MS : 0;
-    const annuale = pkg && pkg.periodo === "annuale";
-    const startMonth = startDate ? startDate.getMonth() : 0;
-
-    const rows = [];
-    let cumulMs = 0, accruedTotalMs = 0;
-    months.forEach(({ year, month }) => {
-      const consumedMs = consumedByMonth.get(year + "-" + month) || 0;
-      let accruedMs = 0;
-      if (hasPkg) {
-        // mensile: +ore ogni mese. annuale: +ore nel mese dell'anniversario.
-        accruedMs = annuale ? (month === startMonth ? oreMs : 0) : oreMs;
-      }
-      accruedTotalMs += accruedMs;
-      const saldoMese = accruedMs - consumedMs;
-      cumulMs += saldoMese;
-      rows.push({ year, month, accruedMs, consumedMs, saldoMese, cumulMs });
-    });
-
-    render(container, {
-      pkg, startDate, hasPkg, rows, taskRows, userRows,
-      consumedTotalMs, accruedTotalMs,
-      saldoMs: accruedTotalMs - consumedTotalMs,
-      partial: failed > 0 && failed < total
-    });
+    // Cache per ri-renderizzare al cambio vista senza nuova fetch.
+    state.hoursData = { tasks, entries, rangeStart, now, partial: failed > 0 && failed < total };
+    renderHoursFromCache();
   } catch (e) {
     container.innerHTML = '<div class="hours-note hours-error">Errore nel caricamento del consumo ore: ' +
       escapeHtml(e && e.message ? e.message : String(e)) + '</div>';
     loaded = false; // consenti un nuovo tentativo
   }
+}
+
+// Ri-renderizza il tab Consumo ore dai dati in cache (cambio vista). No-op se non ancora caricato.
+export function rerenderHoursView(){
+  if (!loaded || !state.hoursData) return;
+  renderHoursFromCache();
+}
+
+// Calcola il modello (globale per pacchetto/saldo, filtrato per il consumo) e renderizza.
+function renderHoursFromCache(){
+  const container = document.getElementById("viewHours");
+  const { tasks, entries, rangeStart, now, partial } = state.hoursData;
+  const cfg = state.clientConfig || {};
+  const pkg = cfg.pacchettoOre || null;
+  const startDate = parseDate(cfg.dataInizio);
+  const hasPkg = !!pkg && !!startDate;
+
+  // --- Entries GLOBALI (tutti i task della lista): pacchetto, saldo, tab "Per mese" ---
+  const idsAll = new Set(tasks.map(t => t.id));
+  const entriesAll = entries.filter(e => e && e.task && idsAll.has(e.task.id));
+
+  // --- Entries FILTRATE (solo task della vista attiva): grafico mensile, per task, per utente ---
+  const tagSet = resolveTagSet(cfg.tagViews, state.activeView);
+  const tasksView = tasks.filter(t => taskMatchesTags(t, tagSet));
+  const idsView = new Set(tasksView.map(t => t.id));
+  const entriesView = entriesAll.filter(e => idsView.has(e.task.id));
+
+  // consumo mensile globale (chiave "year-month")
+  const consumedByMonthAll = new Map();
+  let consumedTotalMs = 0;
+  entriesAll.forEach(e => {
+    const startMs = Number(e.start); if (isNaN(startMs)) return;
+    const ms = Number(e.duration_ms) || 0;
+    const d = new Date(startMs); const key = d.getFullYear() + "-" + d.getMonth();
+    consumedByMonthAll.set(key, (consumedByMonthAll.get(key) || 0) + ms);
+    consumedTotalMs += ms;
+  });
+
+  // consumo mensile FILTRATO (per il grafico)
+  const consumedByMonthView = new Map();
+  entriesView.forEach(e => {
+    const startMs = Number(e.start); if (isNaN(startMs)) return;
+    const ms = Number(e.duration_ms) || 0;
+    const d = new Date(startMs); const key = d.getFullYear() + "-" + d.getMonth();
+    consumedByMonthView.set(key, (consumedByMonthView.get(key) || 0) + ms);
+  });
+
+  const months = monthList(rangeStart, now);
+  const oreMs = pkg ? pkg.ore * HOUR_MS : 0;
+  const annuale = pkg && pkg.periodo === "annuale";
+  const startMonth = startDate ? startDate.getMonth() : 0;
+
+  // Tabella "Per mese" (GLOBALE): maturato/consumato/saldo per mese
+  const rows = [];
+  let cumulMs = 0, accruedTotalMs = 0;
+  months.forEach(({ year, month }) => {
+    const consumedMs = consumedByMonthAll.get(year + "-" + month) || 0;
+    let accruedMs = 0;
+    if (hasPkg) accruedMs = annuale ? (month === startMonth ? oreMs : 0) : oreMs;
+    accruedTotalMs += accruedMs;
+    const saldoMese = accruedMs - consumedMs;
+    cumulMs += saldoMese;
+    rows.push({ year, month, accruedMs, consumedMs, saldoMese, cumulMs });
+  });
+
+  // Serie mensile per il GRAFICO (FILTRATA), allineata agli stessi mesi
+  const chartRows = months.map(({ year, month }) => ({
+    year, month, consumedMs: consumedByMonthView.get(year + "-" + month) || 0
+  }));
+
+  // Dettagli FILTRATI
+  const taskById = new Map(tasksView.map(t => [t.id, t]));
+  const taskRows = aggregateByTask(entriesView, taskById).rows;
+  const userRows = aggregateByUser(entriesView);
+
+  render(container, {
+    pkg, startDate, hasPkg, rows, chartRows, taskRows, userRows,
+    consumedTotalMs, accruedTotalMs,
+    saldoMs: accruedTotalMs - consumedTotalMs,
+    partial
+  });
 }
 
 function kpiCard(label, value, sub, extraClass){
@@ -209,7 +250,7 @@ function setupDetailTabs(container, onFirstUsers){
 }
 
 function render(container, m){
-  const { pkg, startDate, hasPkg, rows, taskRows, userRows, consumedTotalMs, accruedTotalMs, saldoMs, partial } = m;
+  const { pkg, startDate, hasPkg, rows, chartRows, taskRows, userRows, consumedTotalMs, accruedTotalMs, saldoMs, partial } = m;
   let html = "";
 
   html += '<div class="hours-head"><h3>Consumo pacchetto ore</h3>';
@@ -241,8 +282,11 @@ function render(container, m){
       kpiCard("Ore consumate", fmtHoursMs(consumedTotalMs), "totale nel periodo") + '</div>';
   }
 
-  html += '<div class="card"><div class="section-header"><h3>Ore consumate per mese</h3></div>' +
-    '<div class="chart-wrap"><canvas id="hoursPkgChart"></canvas></div>';
+  html += '<div class="card"><div class="section-header"><h3>Ore consumate per mese</h3></div>';
+  if (cfg_hasActiveView()) {
+    html += '<p class="hours-note" style="margin:8px 16px 0;">Il grafico riflette la vista tag selezionata; il blocco pacchetto e la tab "Per mese" restano sull\'intero progetto.</p>';
+  }
+  html += '<div class="chart-wrap"><canvas id="hoursPkgChart"></canvas></div>';
   if (hasPkg && pkg.periodo === "mensile") {
     html += '<div class="legend"><span><i class="marker"></i> Ore consumate</span>' +
       '<span>┄ monte mensile (' + fmtNum(pkg.ore) + 'h)</span></div>';
@@ -270,7 +314,7 @@ function render(container, m){
   html += '<div class="hours-note">Conteggio basato sulle time-entry dei task di questa lista (tutti gli utenti che hanno tracciato tempo).</div>';
 
   container.innerHTML = html;
-  renderChart(rows, (hasPkg && pkg.periodo === "mensile") ? pkg.ore : null);
+  renderChart(chartRows, (hasPkg && pkg.periodo === "mensile") ? pkg.ore : null);
   setupDetailTabs(container, () => {
     if (!userRows.length) {
       const w = container.querySelector("#detailUtente .chart-wrap-users");

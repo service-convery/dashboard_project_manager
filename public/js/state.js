@@ -25,6 +25,8 @@ export const state = {
   lastRender: null,
   // Input grezzi (non filtrati) dell'ultimo render del tab Settimanale: per ri-renderizzare al cambio vista.
   lastRenderInputs: null,
+  // Cache dati del tab Consumo ore (tasks + entries del range): re-render al cambio vista senza fetch.
+  hoursData: null,
 };
 
 try {
