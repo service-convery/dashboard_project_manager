@@ -12,12 +12,13 @@ module.exports = (req, res) => {
     return res.status(401).json({ authenticated: false });
   }
 
-  // Campi pubblici per il client: name + config pacchetto ore. Il listId resta server-side.
+  // Campi pubblici per il client: name + config pacchetto ore + viste tag. Il listId resta server-side.
   const pub = (slug, c) => ({
     slug,
     name: c.name,
     pacchettoOre: c.pacchettoOre || null,
-    dataInizio: c.dataInizio || null
+    dataInizio: c.dataInizio || null,
+    tagViews: Array.isArray(c.tagViews) ? c.tagViews : null
   });
   let clients;
   if (s.role === 'admin') {
