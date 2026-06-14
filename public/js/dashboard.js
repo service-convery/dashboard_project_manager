@@ -212,14 +212,14 @@ async function bootstrap(){
     }
     document.getElementById("clientTitle").textContent = allowed.name + " · Task Settimanali";
     document.title = allowed.name + " — Task Settimanali";
-    state.clientConfig = allowed; // name + pacchettoOre + dataInizio (per la vista "Consumo ore")
+    state.clientConfig = allowed; // slug + name + pacchettiOre + tagViews (per le viste "Consumo ore" e "Settimanale")
 
     // Pacchetto attivo: ripristina da localStorage, valida contro la config.
     const pkgs = normalizePackages(allowed);
     let savedPkg = "0";
     try {
       const v = window.localStorage && window.localStorage.getItem(packageStorageKey(SLUG));
-      if (v === "__altro__") savedPkg = "__altro__";
+      if (v === "__altro__" && pkgs.length > 0) savedPkg = "__altro__";
       else { const idx = Number(v); if (Number.isInteger(idx) && idx >= 0 && idx < pkgs.length) savedPkg = String(idx); }
     } catch (e) { /* ignoro */ }
     state.activePackage = savedPkg;
