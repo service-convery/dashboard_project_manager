@@ -32,8 +32,15 @@ export function effectiveTagNames(task, byId){
   return set;
 }
 
-// Stubs — implemented in subsequent tasks (required for ESM named-import resolution).
-export function containerIds(){ throw new Error("not yet implemented"); }
+// Set degli id che sono `parent` di almeno un altro task (= contenitori).
+export function containerIds(tasks){
+  const ids = new Set();
+  (Array.isArray(tasks) ? tasks : []).forEach(t => {
+    if (t && t.parent != null) ids.add(t.parent);
+  });
+  return ids;
+}
+
 export function normalizePackages(){ throw new Error("not yet implemented"); }
 export function assignPackageIndex(){ throw new Error("not yet implemented"); }
 export function accruedMsForMonth(){ throw new Error("not yet implemented"); }

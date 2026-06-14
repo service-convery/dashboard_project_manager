@@ -30,3 +30,13 @@ test("effectiveTagNames: missing parent in map does not crash", () => {
   const byId = tasksById([child]);
   assert.deepEqual([...effectiveTagNames(child, byId)], ["x"]);
 });
+
+test("containerIds: returns ids that are parent of someone", () => {
+  const parent = task("p", ["estate"]);
+  const child  = task("c", [], "p");
+  const solo   = task("s", ["bug"]);
+  const ids = containerIds([parent, child, solo]);
+  assert.ok(ids.has("p"));    // ha un figlio
+  assert.ok(!ids.has("c"));   // è figlio, non contenitore
+  assert.ok(!ids.has("s"));   // foglia indipendente
+});
