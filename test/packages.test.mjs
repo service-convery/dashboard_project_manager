@@ -40,3 +40,35 @@ test("containerIds: returns ids that are parent of someone", () => {
   assert.ok(!ids.has("c"));   // è figlio, non contenitore
   assert.ok(!ids.has("s"));   // foglia indipendente
 });
+
+test("normalizePackages: array pass-through con default", () => {
+  const cfg = { pacchettiOre: [
+    { label: "Estate", periodo: "stagionale", ore: 60, dataInizio: "2026-06-01", dataFine: "2026-09-30", tags: ["estate"] }
+  ]};
+  const pkgs = normalizePackages(cfg);
+  assert.equal(pkgs.length, 1);
+  assert.equal(pkgs[0].label, "Estate");
+  assert.equal(pkgs[0].periodo, "stagionale");
+  assert.deepEqual(pkgs[0].tags, ["estate"]);  // normalizzati
+});
+
+test("normalizePackages: legacy pacchettoOre singolo => array di uno", () => {
+  const cfg = { pacchettoOre: { ore: 20, periodo: "annuale" }, dataInizio: "2026-01-01" };
+  const pkgs = normalizePackages(cfg);
+  assert.equal(pkgs.length, 1);
+  assert.equal(pkgs[0].ore, 20);
+  assert.equal(pkgs[0].periodo, "annuale");
+  assert.equal(pkgs[0].dataInizio, "2026-01-01");  // ripreso dal livello cliente
+  assert.deepEqual(pkgs[0].tags, []);              // legacy = nessun tag (cattura tutto)
+});
+
+test("normalizePackages: assente => array vuoto", () => {
+  assert.deepEqual(normalizePackages({}), []);
+  assert.deepEqual(normalizePackages(null), []);
+});
+
+test("normalizePackages: tags mancanti => array vuoto, label di default", () => {
+  const pkgs = normalizePackages({ pacchettiOre: [ { ore: 10, periodo: "mensile", dataInizio: "2026-01-01" } ] });
+  assert.deepEqual(pkgs[0].tags, []);
+  assert.equal(pkgs[0].label, "Pacchetto 1");
+});

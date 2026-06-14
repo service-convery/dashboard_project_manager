@@ -41,7 +41,25 @@ export function containerIds(tasks){
   return ids;
 }
 
-export function normalizePackages(){ throw new Error("not yet implemented"); }
+// Normalizza la config cliente in un array di pacchetti uniforme.
+// Accetta `pacchettiOre` (array) oppure il legacy `pacchettoOre` (oggetto) +
+// `dataInizio` a livello cliente. Restituisce [] se nessuno.
+export function normalizePackages(cfg){
+  const c = cfg || {};
+  let raw = [];
+  if (Array.isArray(c.pacchettiOre)) raw = c.pacchettiOre;
+  else if (c.pacchettoOre && typeof c.pacchettoOre === "object") {
+    raw = [Object.assign({ dataInizio: c.dataInizio }, c.pacchettoOre)];
+  }
+  return raw.map((p, i) => ({
+    label: (p && p.label) || ("Pacchetto " + (i + 1)),
+    ore: Number(p && p.ore) || 0,
+    periodo: (p && p.periodo) || "mensile",
+    dataInizio: (p && p.dataInizio) || null,
+    dataFine: (p && p.dataFine) || null,
+    tags: (p && Array.isArray(p.tags) ? p.tags : []).map(normalizeTag).filter(Boolean)
+  }));
+}
 export function assignPackageIndex(){ throw new Error("not yet implemented"); }
 export function accruedMsForMonth(){ throw new Error("not yet implemented"); }
 export function inSeasonWindow(){ throw new Error("not yet implemented"); }
