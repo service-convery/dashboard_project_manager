@@ -72,3 +72,41 @@ test("normalizePackages: tags mancanti => array vuoto, label di default", () => 
   assert.deepEqual(pkgs[0].tags, []);
   assert.equal(pkgs[0].label, "Pacchetto 1");
 });
+
+const PKGS = normalizePackages({ pacchettiOre: [
+  { label: "Estate",  periodo: "stagionale", ore: 60, dataInizio: "2026-06-01", dataFine: "2026-09-30", tags: ["estate"] },
+  { label: "Inverno", periodo: "stagionale", ore: 80, dataInizio: "2026-12-01", dataFine: "2027-03-31", tags: ["inverno"] }
+]});
+
+test("assignPackageIndex: primo pacchetto che matcha vince", () => {
+  const t = task("a", ["estate"]);
+  const byId = tasksById([t]);
+  assert.equal(assignPackageIndex(t, PKGS, byId), 0);
+});
+
+test("assignPackageIndex: match multiplo => primo in ordine config", () => {
+  const t = task("a", ["inverno", "estate"]);
+  const byId = tasksById([t]);
+  assert.equal(assignPackageIndex(t, PKGS, byId), 0); // Estate è prima
+});
+
+test("assignPackageIndex: nessun match => null (Altro)", () => {
+  const t = task("a", ["altro"]);
+  assert.equal(assignPackageIndex(t, PKGS, tasksById([t])), null);
+});
+
+test("assignPackageIndex: sub-task eredita tag del padre", () => {
+  const parent = task("p", ["inverno"]);
+  const child  = task("c", [], "p");
+  const byId = tasksById([parent, child]);
+  assert.equal(assignPackageIndex(child, PKGS, byId), 1); // Inverno via padre
+});
+
+test("assignPackageIndex: pacchetto con tags vuoto cattura i non assegnati", () => {
+  const pkgs = normalizePackages({ pacchettiOre: [
+    { label: "Assistenza", periodo: "mensile", ore: 20, dataInizio: "2026-01-01", tags: ["assistenza"] },
+    { label: "Generico",   periodo: "mensile", ore: 10, dataInizio: "2026-01-01", tags: [] }
+  ]});
+  const t = task("a", ["qualsiasi"]);
+  assert.equal(assignPackageIndex(t, pkgs, tasksById([t])), 1); // catch-all
+});

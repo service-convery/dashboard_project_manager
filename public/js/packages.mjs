@@ -60,7 +60,18 @@ export function normalizePackages(cfg){
     tags: (p && Array.isArray(p.tags) ? p.tags : []).map(normalizeTag).filter(Boolean)
   }));
 }
-export function assignPackageIndex(){ throw new Error("not yet implemented"); }
+// Indice del primo pacchetto i cui tag matchano i tag effettivi del task.
+// Un pacchetto con tags vuoto fa da catch-all (matcha qualsiasi task).
+// Nessun match => null (bucket "Altro").
+export function assignPackageIndex(task, packages, byId){
+  const names = effectiveTagNames(task, byId);
+  for (let i = 0; i < packages.length; i++) {
+    const tags = packages[i].tags;
+    if (tags.length === 0) return i;                 // catch-all
+    for (const tag of tags) if (names.has(tag)) return i;
+  }
+  return null;
+}
 export function accruedMsForMonth(){ throw new Error("not yet implemented"); }
 export function inSeasonWindow(){ throw new Error("not yet implemented"); }
 export function packageStorageKey(){ throw new Error("not yet implemented"); }
