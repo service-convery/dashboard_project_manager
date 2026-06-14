@@ -43,7 +43,7 @@ test("containerIds: returns ids that are parent of someone", () => {
 
 test("normalizePackages: array pass-through con default", () => {
   const cfg = { pacchettiOre: [
-    { label: "Estate", periodo: "stagionale", ore: 60, dataInizio: "2026-06-01", dataFine: "2026-09-30", tags: ["estate"] }
+    { label: "Estate", periodo: "stagionale", ore: 60, dataInizio: "2026-06-01", dataFine: "2026-09-30", tags: ["Estate"] }
   ]};
   const pkgs = normalizePackages(cfg);
   assert.equal(pkgs.length, 1);
@@ -139,6 +139,8 @@ test("inSeasonWindow: vero solo dentro inizio→fine per stagionale", () => {
   assert.equal(inSeasonWindow(p, parseDate("2026-07-15")), true);
   assert.equal(inSeasonWindow(p, parseDate("2026-10-01")), false);
   assert.equal(inSeasonWindow(p, parseDate("2026-05-31")), false);
+  assert.equal(inSeasonWindow(p, parseDate("2026-06-01")), true);  // start day inclusive
+  assert.equal(inSeasonWindow(p, parseDate("2026-09-30")), true);  // end day inclusive
 });
 
 test("inSeasonWindow: non stagionale => sempre vero", () => {
