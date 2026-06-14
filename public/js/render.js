@@ -3,7 +3,7 @@ import { EXCLUDED_STATUSES } from "./config.js";
 import { state, health, retryStats } from "./state.js";
 import { escapeHtml, fmtDay, fmtHours, initials, statusClass, isClosedStatus } from "./format.js";
 import { renderHoursChart, renderStatusChart } from "./charts.js";
-import { resolveTagSet, taskMatchesTags } from "./tag-views.mjs";
+import { resolveTagSet } from "./tag-views.mjs";
 import { tasksById, containerIds, effectiveTagNames } from "./packages.mjs";
 
 export function renderHealth(){
