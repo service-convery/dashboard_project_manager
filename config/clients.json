@@ -1,17 +1,23 @@
 {
   "pirelli": {
     "name": "Pirelli.com",
-    "listId": "901202068602",
-    "tagViews": [
-      { "label": "Frontend", "tags": ["frontend", "ui"] },
-      { "label": "Bug", "tags": ["bug"] },
-      { "label": "Backend", "tags": ["api", "db"] }
-    ]
+    "listId": "901202068602"
   },
   "kiboko": {
     "name": "Kiboko",
     "listId": "901216775998",
-    "pacchettoOre": { "ore": 20, "periodo": "annuale" },
-    "dataInizio": "2026-01-01"
+    "pacchettiOre": [
+      { "label": "Pacchetto ore", "periodo": "annuale", "ore": 20, "dataInizio": "2026-01-01", "tags": [] }
+    ]
+  },
+  "dss": {
+    "name": "dss",
+    "listId": "901216775998",
+    "pacchettiOre": [
+      { "label": "Pacchetto ore", "periodo": "annuale", "ore": 20, "dataInizio": "2026-01-01", "tags": [] }
+    ],
+    "tagViews": [
+      { "label": "Assistenza", "tags": ["frontend", "ui"] }
+    ]
   }
 }
