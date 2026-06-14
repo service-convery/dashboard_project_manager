@@ -8,6 +8,7 @@ import { renderHealth, renderDiag, render, renderTable, rerender } from "./rende
 import { snapshotChartsForPrint } from "./charts.js";
 import { loadHoursView, rerenderHoursView } from "./hours-package.js";
 import { viewStorageKey } from "./tag-views.mjs";
+import { normalizePackages, packageStorageKey } from "./packages.mjs";
 
 async function load(){
   clearError();
@@ -212,6 +213,16 @@ async function bootstrap(){
     document.getElementById("clientTitle").textContent = allowed.name + " · Task Settimanali";
     document.title = allowed.name + " — Task Settimanali";
     state.clientConfig = allowed; // name + pacchettoOre + dataInizio (per la vista "Consumo ore")
+
+    // Pacchetto attivo: ripristina da localStorage, valida contro la config.
+    const pkgs = normalizePackages(allowed);
+    let savedPkg = "0";
+    try {
+      const v = window.localStorage && window.localStorage.getItem(packageStorageKey(SLUG));
+      if (v === "__altro__") savedPkg = "__altro__";
+      else { const idx = Number(v); if (Number.isInteger(idx) && idx >= 0 && idx < pkgs.length) savedPkg = String(idx); }
+    } catch (e) { /* ignoro */ }
+    state.activePackage = savedPkg;
 
     // Switcher cliente: lo mostro solo se la sessione ha accesso a 2+ clienti (tipicamente admin).
     const clients = me.clients || [];
