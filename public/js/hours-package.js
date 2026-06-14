@@ -223,7 +223,14 @@ function taskTableHtml(rows){
   if (!rows.length) {
     h += '<tr><td colspan="5" class="empty">Nessuna ora tracciata nel periodo.</td></tr>';
   } else {
+    let lastParent = " ";
     rows.forEach(r => {
+      if ((r.parentName || "") !== lastParent) {
+        lastParent = r.parentName || "";
+        if (r.parentName) {
+          h += '<tr class="task-group"><td colspan="5"><strong>' + escapeHtml(r.parentName) + '</strong></td></tr>';
+        }
+      }
       const statusRaw = (r.status && typeof r.status === "object") ? r.status.status : r.status;
       const stHtml = '<span class="badge ' + statusClass(statusRaw) + '">' + escapeHtml(statusRaw || "—") + '</span>';
       const nameHtml = r.url
