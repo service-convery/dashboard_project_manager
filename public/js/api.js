@@ -168,8 +168,8 @@ export async function paginateFilterTasks(baseArgs, healthEntry, errorLabel){
     pageTasks.forEach(t => {
       if (!t || !t.id) return;
       totalRaw++;
-      // filtro difensivo subtask: ClickUp imposta parent != null sulle sotto-task
-      if (t.parent != null) { subtaskFiltered++; return; }
+      // I sub-task vengono ora inclusi (pattern padre+sotto-attività). La
+      // distinzione foglia/contenitore è gestita a valle in packages.mjs.
       if (seen.has(t.id)) return;
       seen.add(t.id);
       allTasks.push(t);
@@ -191,7 +191,6 @@ export async function paginateFilterTasks(baseArgs, healthEntry, errorLabel){
       fbTasks.forEach(t => {
         if (!t || !t.id) return;
         totalRaw++;
-        if (t.parent != null) { subtaskFiltered++; return; }
         if (seen.has(t.id)) return;
         seen.add(t.id);
         allTasks.push(t);
