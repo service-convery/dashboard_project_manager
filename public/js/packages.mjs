@@ -72,6 +72,33 @@ export function assignPackageIndex(task, packages, byId){
   }
   return null;
 }
-export function accruedMsForMonth(){ throw new Error("not yet implemented"); }
-export function inSeasonWindow(){ throw new Error("not yet implemented"); }
-export function packageStorageKey(){ throw new Error("not yet implemented"); }
+// Ms maturati nel mese (year, month 0-based) per il pacchetto, dato startDate (Date).
+// - mensile:    `ore` ogni mese (da dataInizio in poi, gestito dal chiamante sui mesi mostrati)
+// - annuale:    `ore` solo nel mese di dataInizio
+// - stagionale: `ore` solo nel mese di dataInizio (finestra chiusa gestita da inSeasonWindow)
+export function accruedMsForMonth(pkg, year, month, startDate){
+  if (!pkg || !startDate) return 0;
+  const oreMs = (Number(pkg.ore) || 0) * HOUR_MS;
+  if (pkg.periodo === "annuale" || pkg.periodo === "stagionale") {
+    return (year === startDate.getFullYear() && month === startDate.getMonth()) ? oreMs : 0;
+  }
+  return oreMs; // mensile
+}
+
+// Vero se `date` rientra nella finestra del pacchetto. Per i non-stagionali è
+// sempre vero (nessuna finestra di chiusura).
+export function inSeasonWindow(pkg, date){
+  if (!pkg || pkg.periodo !== "stagionale") return true;
+  if (!pkg.dataInizio || !pkg.dataFine) return true;
+  const [ys, ms, ds] = pkg.dataInizio.split("-").map(Number);
+  const [ye, me, de] = pkg.dataFine.split("-").map(Number);
+  const start = new Date(ys, ms - 1, ds).getTime();
+  const end = new Date(ye, me - 1, de, 23, 59, 59, 999).getTime();
+  const t = date.getTime();
+  return t >= start && t <= end;
+}
+
+// Chiave localStorage per il pacchetto attivo. Stesso namespace legacy delle altre chiavi.
+export function packageStorageKey(slug){
+  return "pirelli-weekly:active-package:" + (slug || "");
+}

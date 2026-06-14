@@ -110,3 +110,42 @@ test("assignPackageIndex: pacchetto con tags vuoto cattura i non assegnati", () 
   const t = task("a", ["qualsiasi"]);
   assert.equal(assignPackageIndex(t, pkgs, tasksById([t])), 1); // catch-all
 });
+
+const parseDate = (s) => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
+
+test("accruedMsForMonth: mensile accredita ogni mese", () => {
+  const p = normalizePackages({ pacchettiOre:[{ periodo:"mensile", ore:20, dataInizio:"2026-01-01", tags:[] }] })[0];
+  const sd = parseDate(p.dataInizio);
+  assert.equal(accruedMsForMonth(p, 2026, 0, sd), 20*HOUR_MS); // gennaio
+  assert.equal(accruedMsForMonth(p, 2026, 5, sd), 20*HOUR_MS); // giugno
+});
+
+test("accruedMsForMonth: annuale accredita solo nel mese di inizio", () => {
+  const p = normalizePackages({ pacchettiOre:[{ periodo:"annuale", ore:120, dataInizio:"2026-03-01", tags:[] }] })[0];
+  const sd = parseDate(p.dataInizio);
+  assert.equal(accruedMsForMonth(p, 2026, 2, sd), 120*HOUR_MS); // marzo (mese inizio)
+  assert.equal(accruedMsForMonth(p, 2026, 4, sd), 0);           // maggio
+});
+
+test("accruedMsForMonth: stagionale accredita solo nel mese di inizio", () => {
+  const p = normalizePackages({ pacchettiOre:[{ periodo:"stagionale", ore:60, dataInizio:"2026-06-01", dataFine:"2026-09-30", tags:[] }] })[0];
+  const sd = parseDate(p.dataInizio);
+  assert.equal(accruedMsForMonth(p, 2026, 5, sd), 60*HOUR_MS); // giugno
+  assert.equal(accruedMsForMonth(p, 2026, 7, sd), 0);          // agosto
+});
+
+test("inSeasonWindow: vero solo dentro inizio→fine per stagionale", () => {
+  const p = normalizePackages({ pacchettiOre:[{ periodo:"stagionale", ore:60, dataInizio:"2026-06-01", dataFine:"2026-09-30", tags:[] }] })[0];
+  assert.equal(inSeasonWindow(p, parseDate("2026-07-15")), true);
+  assert.equal(inSeasonWindow(p, parseDate("2026-10-01")), false);
+  assert.equal(inSeasonWindow(p, parseDate("2026-05-31")), false);
+});
+
+test("inSeasonWindow: non stagionale => sempre vero", () => {
+  const p = normalizePackages({ pacchettiOre:[{ periodo:"mensile", ore:20, dataInizio:"2026-01-01", tags:[] }] })[0];
+  assert.equal(inSeasonWindow(p, parseDate("2030-01-01")), true);
+});
+
+test("packageStorageKey is slug-scoped", () => {
+  assert.equal(packageStorageKey("acme"), "pirelli-weekly:active-package:acme");
+});
