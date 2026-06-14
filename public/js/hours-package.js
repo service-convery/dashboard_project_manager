@@ -7,7 +7,10 @@ import { state } from "./state.js";
 import { fetchTasks, fetchEntriesRange } from "./api.js";
 import { escapeHtml, statusClass, initials } from "./format.js";
 import { aggregateByTask, aggregateByUser } from "./hours-aggregate.js";
-import { resolveTagSet, taskMatchesTags } from "./tag-views.mjs";
+import {
+  tasksById, containerIds, normalizePackages, assignPackageIndex,
+  accruedMsForMonth, inSeasonWindow, packageStorageKey
+} from "./packages.mjs";
 
 const HOUR_MS = 3600000;
 const USERS_DISCLAIMER =
@@ -104,59 +107,77 @@ function aggregateByMonth(entries){
   return { byMonth, totalMs };
 }
 
-// Calcola il modello (globale per pacchetto/saldo, filtrato per il consumo) e renderizza.
+// Calcola il modello del pacchetto selezionato e renderizza.
 function renderHoursFromCache(){
   const container = document.getElementById("viewHours");
   const { tasks, entries, rangeStart, now, partial } = state.hoursData;
   const cfg = state.clientConfig || {};
-  const pkg = cfg.pacchettoOre || null;
-  const startDate = parseDate(cfg.dataInizio);
+
+  const packages = normalizePackages(cfg);
+  const byId = tasksById(tasks);
+  const containers = containerIds(tasks);
+
+  // Solo le foglie contano come item; assegna ciascuna a un pacchetto (o "Altro").
+  const leaves = tasks.filter(t => !containers.has(t.id));
+  const assignment = new Map(); // taskId -> indice pacchetto | null
+  leaves.forEach(t => assignment.set(t.id, packages.length ? assignPackageIndex(t, packages, byId) : 0));
+
+  // Pacchetto attivo: indice valido | "__altro__".
+  const active = state.activePackage;
+  const isAltro = active === "__altro__";
+  const activeIdx = isAltro ? null : Math.max(0, Math.min(packages.length - 1, Number(active) || 0));
+  const pkg = (!isAltro && packages.length) ? packages[activeIdx] : null;
+  const startDate = pkg ? parseDate(pkg.dataInizio) : null;
   const hasPkg = !!pkg && !!startDate;
 
-  // --- Entries GLOBALI (tutti i task della lista): pacchetto, saldo, tab "Per mese" ---
-  const idsAll = new Set(tasks.map(t => t.id));
-  const entriesAll = entries.filter(e => e && e.task && idsAll.has(e.task.id));
-
-  // --- Entries FILTRATE (solo task della vista attiva): grafico mensile, per task, per utente ---
-  const tagSet = resolveTagSet(cfg.tagViews, state.activeView);
-  const tasksView = tasks.filter(t => taskMatchesTags(t, tagSet));
+  // Task del pacchetto attivo (foglie assegnate a questo indice, o non assegnate se "Altro").
+  const wanted = isAltro ? null : activeIdx;
+  const tasksView = leaves.filter(t => assignment.get(t.id) === wanted);
   const idsView = new Set(tasksView.map(t => t.id));
-  const entriesView = entriesAll.filter(e => idsView.has(e.task.id));
+  const entriesView = entries.filter(e => e && e.task && idsView.has(e.task.id));
 
-  // Consumo mensile: globale (pacchetto/saldo/Per mese) e filtrato (grafico).
-  const { byMonth: consumedByMonthAll, totalMs: consumedTotalMs } = aggregateByMonth(entriesAll);
-  const { byMonth: consumedByMonthView } = aggregateByMonth(entriesView);
+  // Mesi: per stagionale limitati alla finestra; altrimenti dal range dati.
+  let months = monthList(hasPkg ? startDate : rangeStart, now);
+  if (hasPkg && pkg.periodo === "stagionale") {
+    months = months.filter(({ year, month }) => inSeasonWindow(pkg, new Date(year, month, 15)));
+  }
 
-  const months = monthList(rangeStart, now);
-  const oreMs = pkg ? pkg.ore * HOUR_MS : 0;
-  const annuale = pkg && pkg.periodo === "annuale";
-  const startMonth = startDate ? startDate.getMonth() : 0;
+  // Consumo per mese del pacchetto attivo (entro la finestra per lo stagionale).
+  const { byMonth: consumedByMonth, totalMs: consumedRawMs } = aggregateByMonth(
+    (hasPkg && pkg.periodo === "stagionale")
+      ? entriesView.filter(e => inSeasonWindow(pkg, new Date(Number(e.start))))
+      : entriesView
+  );
 
-  // Tabella "Per mese" (GLOBALE): maturato/consumato/saldo per mese
   const rows = [];
-  let cumulMs = 0, accruedTotalMs = 0;
+  let cumulMs = 0, accruedTotalMs = 0, consumedTotalMs = 0;
   months.forEach(({ year, month }) => {
-    const consumedMs = consumedByMonthAll.get(year + "-" + month) || 0;
-    let accruedMs = 0;
-    if (hasPkg) accruedMs = annuale ? (month === startMonth ? oreMs : 0) : oreMs;
+    const consumedMs = consumedByMonth.get(year + "-" + month) || 0;
+    const accruedMs = hasPkg ? accruedMsForMonth(pkg, year, month, startDate) : 0;
     accruedTotalMs += accruedMs;
+    consumedTotalMs += consumedMs;
     const saldoMese = accruedMs - consumedMs;
     cumulMs += saldoMese;
     rows.push({ year, month, accruedMs, consumedMs, saldoMese, cumulMs });
   });
 
-  // Serie mensile per il GRAFICO (FILTRATA), allineata agli stessi mesi
   const chartRows = months.map(({ year, month }) => ({
-    year, month, consumedMs: consumedByMonthView.get(year + "-" + month) || 0
+    year, month, consumedMs: consumedByMonth.get(year + "-" + month) || 0
   }));
 
-  // Dettagli FILTRATI
+  // Dettagli "Per task": raggruppati per padre (il padre fa da intestazione, non somma).
   const taskById = new Map(tasksView.map(t => [t.id, t]));
-  const taskRows = aggregateByTask(entriesView, taskById).rows;
+  const taskRows = aggregateByTask(entriesView, taskById).rows.map(r => {
+    const t = taskById.get(r.id);
+    const parent = t && t.parent != null ? byId.get(t.parent) : null;
+    return Object.assign({}, r, { parentName: parent ? parent.name : null });
+  });
   const userRows = aggregateByUser(entriesView);
 
   render(container, {
-    pkg, startDate, hasPkg, rows, chartRows, taskRows, userRows,
+    pkg, startDate, hasPkg, isAltro, packages, activePackage: active,
+    hasAltro: [...assignment.values()].some(v => v === null) && packages.length > 0,
+    rows, chartRows, taskRows, userRows,
     consumedTotalMs, accruedTotalMs,
     saldoMs: accruedTotalMs - consumedTotalMs,
     partial
