@@ -19,12 +19,6 @@ const USERS_DISCLAIMER =
   "la ripartizione per utente non indica quindi la titolarità dell'attività.";
 let loaded = false; // lazy load: la vista si carica una sola volta
 
-// Vero se è attiva una vista tag diversa da "Tutti" (per le note di trasparenza).
-function hasActiveView(){
-  const cfg = state.clientConfig || {};
-  return Array.isArray(cfg.tagViews) && cfg.tagViews.length > 0 && state.activeView !== "__all__";
-}
-
 // --- formattazione ---
 function fmtNum(h){
   const r = Math.round(h * 10) / 10;
@@ -36,6 +30,10 @@ function fmtSignedMs(ms){
   return sign + fmtNum(Math.abs(ms) / HOUR_MS) + "h";
 }
 function fmtMonthYear(month, year){ return MONTHS[month] + " " + year; }
+function fmtDayMonthYear(d){
+  if (!d) return "?";
+  return d.getDate() + " " + MONTHS[d.getMonth()].slice(0,3).toLowerCase() + " " + d.getFullYear();
+}
 
 // YYYY-MM-DD → Date (inizio giornata, ora locale)
 function parseDate(s){
@@ -275,11 +273,36 @@ function render(container, m){
   const { pkg, startDate, hasPkg, rows, chartRows, taskRows, userRows, consumedTotalMs, accruedTotalMs, saldoMs, partial } = m;
   let html = "";
 
+  const { isAltro, packages, activePackage, hasAltro } = m;
+
+  // Selettore pacchetto: mostrato se >1 pacchetto o se esiste il bucket "Altro".
+  if ((packages && packages.length > 1) || hasAltro) {
+    html += '<div class="filter-toggle package-selector" role="tablist" aria-label="Pacchetto ore">';
+    packages.forEach((p, i) => {
+      const on = !isAltro && String(i) === String(activePackage);
+      html += '<button class="pkg-tab' + (on ? ' active' : '') + '" data-package="' + i +
+        '" role="tab" aria-selected="' + on + '" type="button">' + escapeHtml(p.label) + '</button>';
+    });
+    if (hasAltro) {
+      const on = isAltro;
+      html += '<button class="pkg-tab' + (on ? ' active' : '') + '" data-package="__altro__" role="tab" aria-selected="' + on + '" type="button">Altro</button>';
+    }
+    html += '</div>';
+  }
+
   html += '<div class="hours-head"><h3>Consumo pacchetto ore</h3>';
   if (hasPkg) {
-    html += '<span class="hours-sub">' + fmtNum(pkg.ore) + 'h ' +
-      (pkg.periodo === "annuale" ? "annuali" : "mensili") +
-      ' · dal ' + fmtMonthYear(startDate.getMonth(), startDate.getFullYear()) + '</span>';
+    let sub = fmtNum(pkg.ore) + 'h ';
+    if (pkg.periodo === "stagionale") {
+      const ds = startDate, de = parseDate(pkg.dataFine);
+      sub += 'stagionali · ' + fmtDayMonthYear(ds) + ' – ' + (de ? fmtDayMonthYear(de) : '?');
+    } else {
+      sub += (pkg.periodo === "annuale" ? "annuali" : "mensili") +
+        ' · dal ' + fmtMonthYear(startDate.getMonth(), startDate.getFullYear());
+    }
+    html += '<span class="hours-sub">' + escapeHtml(sub) + '</span>';
+  } else if (isAltro) {
+    html += '<span class="hours-sub">Task non assegnati a un pacchetto — solo consumo</span>';
   } else {
     html += '<span class="hours-sub">Nessun pacchetto configurato — mostro solo le ore consumate per mese</span>';
   }
@@ -305,9 +328,6 @@ function render(container, m){
   }
 
   html += '<div class="card"><div class="section-header"><h3>Ore consumate per mese</h3></div>';
-  if (hasActiveView()) {
-    html += '<p class="hours-note" style="margin:8px 16px 0;">Il grafico riflette la vista tag selezionata; il blocco pacchetto e la tab "Per mese" restano sull\'intero progetto.</p>';
-  }
   html += '<div class="chart-wrap"><canvas id="hoursPkgChart"></canvas></div>';
   if (hasPkg && pkg.periodo === "mensile") {
     html += '<div class="legend"><span><i class="marker"></i> Ore consumate</span>' +
@@ -344,6 +364,16 @@ function render(container, m){
       return;
     }
     renderUsersChart(userRows);
+  });
+
+  container.querySelectorAll(".package-selector .pkg-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      state.activePackage = btn.dataset.package;
+      try { window.localStorage && window.localStorage.setItem(
+        packageStorageKey(state.clientConfig && state.clientConfig.slug),
+        state.activePackage); } catch (e) {}
+      renderHoursFromCache();
+    });
   });
 }
 
