@@ -127,8 +127,8 @@ export function extractEntries(resp){
 
 // === Pagina filter_tasks finché non abbiamo tutto ===
 // La filter_tasks di ClickUp è paginata (100 task/pagina). Senza loop si rischia
-// di vedere solo i primi 100. Filtro inoltre le subtask in modo difensivo
-// (parent != null) anche se la chiamata API è già impostata con subtasks: false.
+// di vedere solo i primi 100. I sub-task vengono inclusi (subtasks: true): la
+// distinzione foglia/contenitore è gestita a valle in packages.mjs.
 export async function paginateFilterTasks(baseArgs, healthEntry, errorLabel){
   const allTasks = [];
   const seen = new Set();
@@ -145,8 +145,8 @@ export async function paginateFilterTasks(baseArgs, healthEntry, errorLabel){
     if (page > 0 && FETCH_PAGE_DELAY_MS > 0) {
       await new Promise(res => setTimeout(res, FETCH_PAGE_DELAY_MS));
     }
-    // IMPORTANTE: mantengo subtasks: true (come la versione storica funzionante).
-    // Le subtask vengono filtrate lato client tramite parent != null.
+    // IMPORTANTE: mantengo subtasks: true (come la versione storica funzionante),
+    // così i sub-task arrivano e vengono inclusi nei conteggi.
     const args = Object.assign({}, baseArgs, { subtasks: true, page: page });
     const r = await callMcpWithRetry(T_FILTER, args);
     totalAttempts += r.attempts;
