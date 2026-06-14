@@ -1,0 +1,29 @@
+{
+  "_comment": "File di esempio. Copia in clients.json e personalizza. Ogni chiave e' lo slug del cliente. 'periodo' ammette: mensile | annuale | stagionale (stagionale richiede dataInizio e dataFine).",
+
+  "clienteMinimo": {
+    "name": "Nome Cliente",
+    "listId": "901200000000"
+  },
+
+  "clienteConPacchetto": {
+    "name": "Nome Cliente",
+    "listId": "901200000000",
+    "pacchettiOre": [
+      { "label": "Pacchetto ore", "periodo": "annuale", "ore": 20, "dataInizio": "2026-01-01", "tags": [] }
+    ]
+  },
+
+  "clienteTurismo": {
+    "name": "Hotel Mare",
+    "listId": "901200000000",
+    "pacchettiOre": [
+      { "label": "Estate",  "periodo": "stagionale", "ore": 60, "dataInizio": "2026-06-01", "dataFine": "2026-09-30", "tags": ["estate"] },
+      { "label": "Inverno", "periodo": "stagionale", "ore": 80, "dataInizio": "2026-12-01", "dataFine": "2027-03-31", "tags": ["inverno"] },
+      { "label": "Continuativo", "periodo": "mensile", "ore": 20, "dataInizio": "2026-01-01", "tags": ["assistenza"] }
+    ],
+    "tagViews": [
+      { "label": "Sviluppo", "tags": ["backend", "api"] }
+    ]
+  }
+}
