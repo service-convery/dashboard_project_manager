@@ -68,8 +68,12 @@ export async function loadHoursView(){
     const tasks = await fetchTasks();            // cache condivisa con la vista settimanale
     const now = new Date();
     const cfg = state.clientConfig || {};
-    const startDate = parseDate(cfg.dataInizio);
-    const rangeStart = startDate || new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const pkgs = normalizePackages(cfg);
+    const earliest = pkgs.reduce((acc, p) => {
+      const d = parseDate(p.dataInizio);
+      return (d && (!acc || d < acc)) ? d : acc;
+    }, null);
+    const rangeStart = earliest || new Date(now.getFullYear(), now.getMonth() - 11, 1);
     const { entries, failed, total } = await fetchEntriesRange(tasks, rangeStart, now);
 
     // Cache per ri-renderizzare al cambio vista senza nuova fetch. Invariante: rerenderHoursView
@@ -141,7 +145,7 @@ function renderHoursFromCache(){
   }
 
   // Consumo per mese del pacchetto attivo (entro la finestra per lo stagionale).
-  const { byMonth: consumedByMonth, totalMs: consumedRawMs } = aggregateByMonth(
+  const { byMonth: consumedByMonth } = aggregateByMonth(
     (hasPkg && pkg.periodo === "stagionale")
       ? entriesView.filter(e => inSeasonWindow(pkg, new Date(Number(e.start))))
       : entriesView
