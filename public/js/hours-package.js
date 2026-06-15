@@ -397,7 +397,8 @@ function render(container, m){
     html += '<div class="kpi-grid hours-kpi">' +
       kpiCard("Ore maturate", fmtHoursMs(accruedTotalMs), "accreditate dall'inizio") +
       kpiCard("Ore consumate", fmtHoursMs(consumedTotalMs), "tracciate sui task") +
-      kpiCard("Saldo residuo", fmtSignedMs(saldoMs), saldoMs < 0 ? "pacchetto sforato" : "ore disponibili",
+      kpiCard("Saldo residuo", (saldoMs < 0 ? "−" : "") + fmtHM(Math.abs(saldoMs)),
+              saldoMs < 0 ? "pacchetto sforato" : "ore disponibili",
               saldoMs < 0 ? "saldo-neg" : "saldo-pos") +
       '</div>';
     html += '<div class="card hours-progress-card">' +
