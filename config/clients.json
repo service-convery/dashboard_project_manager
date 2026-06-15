@@ -11,13 +11,12 @@
     ]
   },
   "dss": {
-    "name": "dss",
-    "listId": "901216775998",
+    "name": "Dolomiti SuperSummer",
+    "listId": "901216840850",
     "pacchettiOre": [
-      { "label": "Pacchetto ore", "periodo": "annuale", "ore": 20, "dataInizio": "2026-01-01", "tags": [] }
-    ],
-    "tagViews": [
-      { "label": "Assistenza", "tags": ["frontend", "ui"] }
+      { "label": "Pacchetto ore", "periodo": "stagionale", "ore": 40, "dataInizio": "2026-05-01", "dataFine": "2026-09-30", "tags": ["pacchetto ore"] }
     ]
   }
 }
+
+
