@@ -3,10 +3,11 @@
 // le time-entry sui task della lista scalano il saldo, il residuo si accumula.
 // Se il cliente non ha pacchetto configurato, mostra solo il consumo per mese.
 import { MONTHS } from "./config.js";
-import { state } from "./state.js";
+import { state, isAdmin } from "./state.js";
 import { fetchTasks, fetchEntriesRange } from "./api.js";
 import { escapeHtml, statusClass, initials } from "./format.js";
 import { aggregateByUser } from "./hours-aggregate.js";
+import { snapshotCanvases } from "./charts.js";
 import {
   tasksById, containerIds, normalizePackages, assignPackageIndex,
   accruedMsForMonth, inSeasonWindow, packageStorageKey
@@ -128,24 +129,38 @@ function aggregateByMonth(entries){
   return { byMonth, totalMs };
 }
 
+// Partizione task -> pacchetto: dipende solo da tasks+cfg (non dal pacchetto attivo),
+// quindi la calcolo una volta e la riuso a ogni cambio pacchetto. Solo le foglie
+// contano come item; ognuna va al primo pacchetto che matcha, o a "Altro" (indice null).
+function partitionTasks(tasks, cfg){
+  const packages = normalizePackages(cfg);
+  const byId = tasksById(tasks);
+  const containers = containerIds(tasks);
+  const leaves = tasks.filter(t => !containers.has(t.id));
+  const assignment = new Map(); // taskId -> indice pacchetto | null
+  let hasUnassigned = false;
+  leaves.forEach(t => {
+    const idx = packages.length ? assignPackageIndex(t, packages, byId) : 0;
+    assignment.set(t.id, idx);
+    if (idx === null) hasUnassigned = true;
+  });
+  return { packages, byId, leaves, assignment, hasUnassigned };
+}
+
 // Calcola il modello del pacchetto selezionato e renderizza.
 function renderHoursFromCache(){
   const container = document.getElementById("viewHours");
   const { tasks, entries, rangeStart, now, partial } = state.hoursData;
   const cfg = state.clientConfig || {};
 
-  const packages = normalizePackages(cfg);
-  const byId = tasksById(tasks);
-  const containers = containerIds(tasks);
-
-  // Solo le foglie contano come item; assegna ciascuna a un pacchetto (o "Altro").
-  const leaves = tasks.filter(t => !containers.has(t.id));
-  const assignment = new Map(); // taskId -> indice pacchetto | null
-  leaves.forEach(t => assignment.set(t.id, packages.length ? assignPackageIndex(t, packages, byId) : 0));
+  // Memoizzata su hoursData: invalidata naturalmente quando i task vengono rifetchati.
+  const part = state.hoursData.partition ||
+    (state.hoursData.partition = partitionTasks(tasks, cfg));
+  const { packages, byId, leaves, assignment, hasUnassigned } = part;
 
   // Pacchetto attivo: indice valido | "__altro__". Il bucket "Altro" è solo-admin:
   // per i clienti la vista resta sui pacchetti configurati.
-  const canAltro = state.role === "admin";
+  const canAltro = isAdmin();
   const active = state.activePackage;
   const isAltro = active === "__altro__" && canAltro;
   const activeIdx = isAltro ? null : Math.max(0, Math.min(packages.length - 1, Number(active) || 0));
@@ -234,7 +249,7 @@ function renderHoursFromCache(){
 
   render(container, {
     pkg, startDate, hasPkg, isAltro, packages, activePackage: active,
-    hasAltro: canAltro && packages.length > 0 && [...assignment.values()].some(v => v === null),
+    hasAltro: canAltro && packages.length > 0 && hasUnassigned,
     rows, chartRows, taskRows, userRows,
     consumedTotalMs, accruedTotalMs,
     saldoMs: accruedTotalMs - consumedTotalMs,
@@ -339,10 +354,9 @@ function setupDetailTabs(container, onFirstUsers){
 }
 
 function render(container, m){
-  const { pkg, startDate, hasPkg, rows, chartRows, taskRows, userRows, consumedTotalMs, accruedTotalMs, saldoMs, partial } = m;
+  const { pkg, startDate, hasPkg, rows, chartRows, taskRows, userRows, consumedTotalMs,
+    accruedTotalMs, saldoMs, partial, isAltro, packages, activePackage, hasAltro } = m;
   let html = "";
-
-  const { isAltro, packages, activePackage, hasAltro } = m;
 
   // Selettore pacchetto: mostrato se >1 pacchetto o se esiste il bucket "Altro".
   if ((packages && packages.length > 1) || hasAltro) {
@@ -464,23 +478,25 @@ function render(container, m){
   });
 }
 
-// Snapshot dei grafici del tab ore come PNG nei rispettivi <img class="chart-print">,
-// così la stampa (in @media print i canvas sono nascosti) mostra i grafici. No-op se assenti.
+// Snapshot dei grafici del tab ore nei rispettivi <img class="chart-print">, così la
+// stampa (in @media print i canvas sono nascosti) li mostra. No-op se assenti.
 function snapshotHoursCharts(){
-  try {
-    [["hoursPkgChart", "hoursPkgChartPrint", state.hoursPkgChart],
-     ["hoursUsersChart", "hoursUsersChartPrint", state.hoursUsersChart]].forEach(([cid, iid, chart]) => {
-      const c = document.getElementById(cid), img = document.getElementById(iid);
-      if (chart) chart.resize();
-      if (c && img) img.src = c.toDataURL("image/png", 1.0);
-    });
-  } catch (e) { console.warn("snapshotHoursCharts failed:", e); }
+  snapshotCanvases([
+    ["hoursPkgChart", "hoursPkgChartPrint", state.hoursPkgChart],
+    ["hoursUsersChart", "hoursUsersChartPrint", state.hoursUsersChart]
+  ]);
 }
 
 // Anche con Ctrl/Cmd+P dal tab ore i grafici vengono snapshottati in tempo.
 if (typeof window !== "undefined") {
   window.addEventListener("beforeprint", snapshotHoursCharts);
 }
+
+// Stile comune dei tooltip Chart.js del tab ore (solo la callback `label` cambia).
+const TOOLTIP_STYLE = {
+  backgroundColor: "#FFFFFF", titleColor: "#1A1A2E", bodyColor: "#5A6178",
+  borderColor: "#D8DCE4", borderWidth: 1, padding: 10
+};
 
 function renderChart(rows, monthlyAllowanceH){
   const ctx = document.getElementById("hoursPkgChart");
@@ -509,11 +525,9 @@ function renderChart(rows, monthlyAllowanceH){
       responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: {
-          backgroundColor: "#FFFFFF", titleColor: "#1A1A2E", bodyColor: "#5A6178",
-          borderColor: "#D8DCE4", borderWidth: 1, padding: 10,
+        tooltip: Object.assign({}, TOOLTIP_STYLE, {
           callbacks: { label: (c) => c.dataset.label + ": " + fmtHM(c.parsed.y * HOUR_MS) }
-        }
+        })
       },
       scales: {
         x: { grid: { display: false }, ticks: { color: "#5A6178", font: { size: 11 } } },
@@ -544,11 +558,9 @@ function renderUsersChart(users){
       responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: {
-          backgroundColor: "#FFFFFF", titleColor: "#1A1A2E", bodyColor: "#5A6178",
-          borderColor: "#D8DCE4", borderWidth: 1, padding: 10,
+        tooltip: Object.assign({}, TOOLTIP_STYLE, {
           callbacks: { label: (c) => fmtHM(c.parsed.x * HOUR_MS) }
-        }
+        })
       },
       scales: {
         x: { beginAtZero: true, ticks: { color: "#5A6178", font: { size: 11 }, callback: (v) => v + "h" }, grid: { color: "#E8ECF2" } },

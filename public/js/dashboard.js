@@ -1,6 +1,6 @@
 // === Entry point: orchestrazione, event listener e bootstrap ===
 import { SLUG, CLIENT_NAME_FALLBACK, EXCLUDED_STATUSES } from "./config.js";
-import { state, resetHealth } from "./state.js";
+import { state, resetHealth, isAdmin } from "./state.js";
 import { fmtDay, fmtDayYear, getWeekRange } from "./format.js";
 import { clearError, setLoading } from "./ui.js";
 import { fetchTasks, fetchEntries, fetchClosedThisWeek, fetchEstimates } from "./api.js";
@@ -215,7 +215,7 @@ async function bootstrap(){
     state.clientConfig = allowed; // slug + name + pacchettiOre + tagViews (per le viste "Consumo ore" e "Settimanale")
     state.role = me.role || null;
     // Gating UI: per i clienti nascondo diagnostica/health e il bucket "Altro" (vedi CSS .role-client).
-    document.body.classList.toggle("role-client", me.role !== "admin");
+    document.body.classList.toggle("role-client", !isAdmin());
 
     // Pacchetto attivo: ripristina da localStorage, valida contro la config.
     const pkgs = normalizePackages(allowed);

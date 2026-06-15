@@ -33,6 +33,9 @@ export const state = {
   hoursData: null,
 };
 
+// Vero se la sessione è admin (gating UI: diagnostica e bucket "Altro" solo-admin).
+export function isAdmin(){ return state.role === "admin"; }
+
 try {
   const saved = window.localStorage && window.localStorage.getItem("pirelli-weekly:table-filter");
   if (saved === "week" || saved === "all") state.tableFilter = saved;

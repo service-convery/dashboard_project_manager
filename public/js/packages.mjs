@@ -2,12 +2,9 @@
 // === Logica pura per i pacchetti ore (nessuna dipendenza DOM) ===
 // Testabile con `node --test` e riusata da hours-package.js / render.js.
 
-const HOUR_MS = 3600000;
+import { normalizeTag } from "./tag-views.mjs";
 
-// Normalizza un nome tag: stringa lowercase senza spazi ai bordi.
-export function normalizeTag(name){
-  return String(name == null ? "" : name).toLowerCase().trim();
-}
+const HOUR_MS = 3600000;
 
 // Map(id -> task) per lookup del padre.
 export function tasksById(tasks){
