@@ -143,9 +143,11 @@ function renderHoursFromCache(){
   const assignment = new Map(); // taskId -> indice pacchetto | null
   leaves.forEach(t => assignment.set(t.id, packages.length ? assignPackageIndex(t, packages, byId) : 0));
 
-  // Pacchetto attivo: indice valido | "__altro__".
+  // Pacchetto attivo: indice valido | "__altro__". Il bucket "Altro" è solo-admin:
+  // per i clienti la vista resta sui pacchetti configurati.
+  const canAltro = state.role === "admin";
   const active = state.activePackage;
-  const isAltro = active === "__altro__";
+  const isAltro = active === "__altro__" && canAltro;
   const activeIdx = isAltro ? null : Math.max(0, Math.min(packages.length - 1, Number(active) || 0));
   const pkg = (!isAltro && packages.length) ? packages[activeIdx] : null;
   const startDate = pkg ? parseDate(pkg.dataInizio) : null;
@@ -232,7 +234,7 @@ function renderHoursFromCache(){
 
   render(container, {
     pkg, startDate, hasPkg, isAltro, packages, activePackage: active,
-    hasAltro: [...assignment.values()].some(v => v === null) && packages.length > 0,
+    hasAltro: canAltro && packages.length > 0 && [...assignment.values()].some(v => v === null),
     rows, chartRows, taskRows, userRows,
     consumedTotalMs, accruedTotalMs,
     saldoMs: accruedTotalMs - consumedTotalMs,
@@ -418,9 +420,9 @@ function render(container, m){
     '</div></div>';
 
   if (partial) {
-    html += '<div class="hours-note">Dati parziali: alcune chiamate a ClickUp non hanno risposto. Ricarica per riprovare.</div>';
+    html += '<div class="hours-note">Alcuni dati non sono disponibili al momento. Ricarica per riprovare.</div>';
   }
-  html += '<div class="hours-note">Conteggio basato sulle time-entry dei task di questa lista (tutti gli utenti che hanno tracciato tempo).</div>';
+  html += '<div class="hours-note">Ore calcolate dal tempo registrato sui task (tutti gli utenti che hanno tracciato tempo).</div>';
 
   // Banner export PDF (nascosto in stampa via @media print .export-banner).
   html += '<section class="export-banner">' +

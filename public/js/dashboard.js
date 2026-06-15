@@ -213,6 +213,9 @@ async function bootstrap(){
     document.getElementById("clientTitle").textContent = allowed.name + " · Task Settimanali";
     document.title = allowed.name + " — Task Settimanali";
     state.clientConfig = allowed; // slug + name + pacchettiOre + tagViews (per le viste "Consumo ore" e "Settimanale")
+    state.role = me.role || null;
+    // Gating UI: per i clienti nascondo diagnostica/health e il bucket "Altro" (vedi CSS .role-client).
+    document.body.classList.toggle("role-client", me.role !== "admin");
 
     // Pacchetto attivo: ripristina da localStorage, valida contro la config.
     const pkgs = normalizePackages(allowed);

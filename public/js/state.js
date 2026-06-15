@@ -15,6 +15,7 @@ export const state = {
   hoursPkgChart: null,   // grafico della vista "Consumo ore"
   hoursUsersChart: null, // grafico "Per utente" nella vista "Consumo ore"
   clientConfig: null,    // config del cliente corrente (name, slug, pacchettiOre, tagViews)
+  role: null,            // "admin" | "client": gating UI (diagnostica e bucket "Altro" solo admin)
   // Filtro tabella: "week" (solo task con scadenza nella settimana) | "all" (tutti i task aperti).
   // Salvato in localStorage per persistere tra le aperture dell'artefatto.
   tableFilter: "week",

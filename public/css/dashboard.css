@@ -769,3 +769,7 @@ tr.task-group td { background: rgba(0,0,0,0.03); font-size: 12px; color: var(--t
 
 /* Spazio sopra il box "Esporta PDF" nel tab Consumo ore. */
 #viewHours .export-banner { margin-top: 24px; }
+
+/* Vista cliente: nascondi strumenti interni (barra fonti dati + diagnostica). */
+.role-client #healthRow,
+.role-client .page-foot { display: none !important; }
