@@ -7,6 +7,7 @@ import { fetchTasks, fetchEntries, fetchClosedThisWeek, fetchEstimates } from ".
 import { renderHealth, renderDiag, render, renderTable, rerender } from "./render.js";
 import { snapshotChartsForPrint } from "./charts.js";
 import { loadHoursView, rerenderHoursView } from "./hours-package.js";
+import { loadMonthlyView, rerenderMonthlyView } from "./monthly.js";
 import { viewStorageKey } from "./tag-views.mjs";
 import { normalizePackages, packageStorageKey } from "./packages.mjs";
 
@@ -74,16 +75,20 @@ document.getElementById("filterAll").addEventListener("click", () => setTableFil
 
 // === Tab: Settimanale / Consumo ore ===
 function switchView(view){
-  const weekly = view === "weekly";
-  document.getElementById("viewWeekly").classList.toggle("hide", !weekly);
-  document.getElementById("viewHours").classList.toggle("hide", weekly);
-  document.getElementById("tabWeekly").classList.toggle("active", weekly);
-  document.getElementById("tabHours").classList.toggle("active", !weekly);
-  document.getElementById("tabWeekly").setAttribute("aria-selected", String(weekly));
-  document.getElementById("tabHours").setAttribute("aria-selected", String(!weekly));
-  if (!weekly) loadHoursView(); // lazy: carica i dati al primo accesso
+  const views = { weekly: "viewWeekly", monthly: "viewMonthly", hours: "viewHours" };
+  const tabs = { weekly: "tabWeekly", monthly: "tabMonthly", hours: "tabHours" };
+  Object.entries(views).forEach(([k, id]) => document.getElementById(id).classList.toggle("hide", k !== view));
+  Object.entries(tabs).forEach(([k, id]) => {
+    const on = k === view;
+    document.getElementById(id).classList.toggle("active", on);
+    document.getElementById(id).setAttribute("aria-selected", String(on));
+  });
+  // Lazy: carica i dati al primo accesso del tab.
+  if (view === "monthly") loadMonthlyView();
+  if (view === "hours") loadHoursView();
 }
 document.getElementById("tabWeekly").addEventListener("click", () => switchView("weekly"));
+document.getElementById("tabMonthly").addEventListener("click", () => switchView("monthly"));
 document.getElementById("tabHours").addEventListener("click", () => switchView("hours"));
 
 // === Selettore "Vista per tag" (condiviso tra i due tab) ===
@@ -141,6 +146,7 @@ function setActiveView(value){
   // Entrambe sono no-op se il rispettivo tab non è ancora stato renderizzato/caricato.
   rerender();
   rerenderHoursView();
+  rerenderMonthlyView();
 }
 
 // Export PDF: snapshot dei chart, poi window.print() (lo stylesheet @media print

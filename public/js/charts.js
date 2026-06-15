@@ -57,23 +57,22 @@ export function renderHoursChart(hoursByDay){
   });
 }
 
-export function renderStatusChart(statusCounts){
-  const ctx = document.getElementById("statusChart");
+export function renderStatusChart(statusCounts, canvasId = "statusChart", chartKey = "statusChart"){
+  const ctx = document.getElementById(canvasId);
   const labels = Array.from(statusCounts.keys());
   const data = Array.from(statusCounts.values());
   // Tinte nettamente distinte (i due viola precedenti erano indistinguibili su mobile).
-  // Il grafico mostra solo task aperti, quindi nessun conflitto con "completato".
   const palette = ["#3333FF", "#E8A830", "#2E9E5A", "#9999FF", "#D94452", "#5A6178"];
-  if (state.statusChart) state.statusChart.destroy();
+  if (state[chartKey]) state[chartKey].destroy();
   if (!labels.length) {
-    state.statusChart = new Chart(ctx, {
+    state[chartKey] = new Chart(ctx, {
       type: "doughnut",
       data: { labels: ["Nessun task"], datasets: [{ data: [1], backgroundColor: ["#E8ECF2"], borderWidth: 0 }] },
       options: { responsive: true, maintainAspectRatio: false, cutout: "65%", plugins: { legend: { display:false }, tooltip: { enabled:false } } }
     });
     return;
   }
-  state.statusChart = new Chart(ctx, {
+  state[chartKey] = new Chart(ctx, {
     type: "doughnut",
     data: {
       labels,

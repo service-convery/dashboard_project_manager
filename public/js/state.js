@@ -31,6 +31,10 @@ export const state = {
   lastRenderInputs: null,
   // Cache dati del tab Consumo ore (tasks + entries del range): re-render al cambio vista senza fetch.
   hoursData: null,
+  // Tab "Mensile": offset del mese (0 = corrente), cache dati e chart status.
+  monthOffset: 0,
+  monthlyData: null,
+  monthlyStatusChart: null,
 };
 
 // Vero se la sessione è admin (gating UI: diagnostica e bucket "Altro" solo-admin).
