@@ -40,6 +40,14 @@ function fmtSignedMs(ms){
   const sign = ms < 0 ? "−" : (ms > 0 ? "+" : "");
   return sign + fmtHM(Math.abs(ms));
 }
+// Etichetta e ordine dello status ClickUp (oggetto {status, orderindex} o stringa).
+function statusLabel(status){
+  return (status && typeof status === "object") ? (status.status || "") : (status || "");
+}
+function statusOrder(status){
+  const oi = status && typeof status === "object" ? Number(status.orderindex) : NaN;
+  return Number.isFinite(oi) ? oi : Number.MAX_SAFE_INTEGER;
+}
 function fmtMonthYear(month, year){ return MONTHS[month] + " " + year; }
 function fmtDayMonthYear(d){
   if (!d) return "?";
@@ -215,7 +223,8 @@ function renderHoursFromCache(){
       parentName: parent ? parent.name : null
     };
   }).sort((a, b) =>
-    (a.parentName || "").localeCompare(b.parentName || "") ||
+    statusOrder(a.status) - statusOrder(b.status) ||
+    statusLabel(a.status).localeCompare(statusLabel(b.status)) ||
     b.ms - a.ms ||
     a.name.localeCompare(b.name)
   );
@@ -272,25 +281,27 @@ function taskTableHtml(rows){
   if (!rows.length) {
     h += '<tr><td colspan="5" class="empty">Nessun task in questo pacchetto.</td></tr>';
   } else {
-    let lastParent = " ";
+    let lastStatus = " ";
     rows.forEach(r => {
-      if ((r.parentName || "") !== lastParent) {
-        lastParent = r.parentName || "";
-        if (r.parentName) {
-          h += '<tr class="task-group"><td colspan="5"><strong>' + escapeHtml(r.parentName) + '</strong></td></tr>';
-        }
+      const statusRaw = statusLabel(r.status) || "—";
+      if (statusRaw !== lastStatus) {
+        lastStatus = statusRaw;
+        h += '<tr class="task-group"><td colspan="5">' +
+          '<span class="badge ' + statusClass(statusRaw) + '">' + escapeHtml(statusRaw) + '</span></td></tr>';
       }
-      const statusRaw = (r.status && typeof r.status === "object") ? r.status.status : r.status;
-      const stHtml = '<span class="badge ' + statusClass(statusRaw) + '">' + escapeHtml(statusRaw || "—") + '</span>';
+      const stHtml = '<span class="badge ' + statusClass(statusRaw) + '">' + escapeHtml(statusRaw) + '</span>';
       const nameHtml = r.url
         ? '<a href="' + escapeHtml(r.url) + '" target="_blank" rel="noopener">' + escapeHtml(r.name) + '</a>'
         : escapeHtml(r.name);
+      const parentHtml = r.parentName
+        ? '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">↳ ' + escapeHtml(r.parentName) + '</div>'
+        : '';
       const assHtml = r.assignees.length
         ? '<div class="assignees">' + r.assignees.map(a =>
             '<span class="avatar" title="' + escapeHtml(a.username || "") + '">' + escapeHtml(initials(a.username)) + '</span>'
           ).join("") + '</div>'
         : '<span style="color:var(--text-muted);font-size:12px;">—</span>';
-      h += '<tr><td><div class="task-name">' + nameHtml + '</div></td>' +
+      h += '<tr><td><div class="task-name">' + nameHtml + '</div>' + parentHtml + '</td>' +
         '<td>' + stHtml + '</td>' +
         '<td>' + assHtml + '</td>' +
         '<td style="text-align:right;">' + fmtHoursMs(r.ms) + '</td>' +
