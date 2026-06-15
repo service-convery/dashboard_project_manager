@@ -395,7 +395,7 @@ function render(container, m){
   }
 
   html += '<div class="card"><div class="section-header"><h3>Ore consumate per mese</h3></div>';
-  html += '<div class="chart-wrap"><canvas id="hoursPkgChart"></canvas></div>';
+  html += '<div class="chart-wrap"><canvas id="hoursPkgChart"></canvas><img id="hoursPkgChartPrint" class="chart-print" alt=""/></div>';
   if (hasPkg && pkg.periodo === "mensile") {
     html += '<div class="legend"><span><i class="marker"></i> Ore consumate</span>' +
       '<span>┄ monte mensile (' + fmtNum(pkg.ore) + 'h)</span></div>';
@@ -412,7 +412,7 @@ function render(container, m){
     '<div id="detailMese" class="detail-panel">' + monthlyDetailTableHtml(rows, hasPkg) + '</div>' +
     '<div id="detailTask" class="detail-panel hide">' + taskTableHtml(taskRows) + '</div>' +
     '<div id="detailUtente" class="detail-panel hide">' +
-      '<div class="chart-wrap chart-wrap-users"><canvas id="hoursUsersChart"></canvas></div>' +
+      '<div class="chart-wrap chart-wrap-users"><canvas id="hoursUsersChart"></canvas><img id="hoursUsersChartPrint" class="chart-print" alt=""/></div>' +
       '<p class="hours-note">' + escapeHtml(USERS_DISCLAIMER) + '</p>' +
       '<p class="hours-note">Include tutti gli utenti che hanno tracciato ore sui task di questa lista.</p>' +
     '</div></div>';
@@ -421,6 +421,17 @@ function render(container, m){
     html += '<div class="hours-note">Dati parziali: alcune chiamate a ClickUp non hanno risposto. Ricarica per riprovare.</div>';
   }
   html += '<div class="hours-note">Conteggio basato sulle time-entry dei task di questa lista (tutti gli utenti che hanno tracciato tempo).</div>';
+
+  // Banner export PDF (nascosto in stampa via @media print .export-banner).
+  html += '<section class="export-banner">' +
+    '<div class="export-banner-text"><div>' +
+      '<div class="export-banner-title">Esporta il pacchetto ore in PDF</div>' +
+      '<div class="export-banner-sub">Layout A4 ottimizzato, pronto da inviare al cliente.</div>' +
+    '</div></div>' +
+    '<button type="button" id="exportHoursPdfBtn" class="btn btn-primary" title="Esporta in PDF A4" aria-label="Esporta in PDF">' +
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right:2px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>' +
+      'Esporta PDF</button>' +
+    '</section>';
 
   container.innerHTML = html;
   renderChart(chartRows, (hasPkg && pkg.periodo === "mensile") ? pkg.ore : null);
@@ -442,6 +453,31 @@ function render(container, m){
       renderHoursFromCache();
     });
   });
+
+  const exportBtn = container.querySelector("#exportHoursPdfBtn");
+  if (exportBtn) exportBtn.addEventListener("click", () => {
+    snapshotHoursCharts();
+    // doppio rAF: assicura che le <img> snapshot siano nel DOM prima di stampare
+    requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+  });
+}
+
+// Snapshot dei grafici del tab ore come PNG nei rispettivi <img class="chart-print">,
+// così la stampa (in @media print i canvas sono nascosti) mostra i grafici. No-op se assenti.
+function snapshotHoursCharts(){
+  try {
+    [["hoursPkgChart", "hoursPkgChartPrint", state.hoursPkgChart],
+     ["hoursUsersChart", "hoursUsersChartPrint", state.hoursUsersChart]].forEach(([cid, iid, chart]) => {
+      const c = document.getElementById(cid), img = document.getElementById(iid);
+      if (chart) chart.resize();
+      if (c && img) img.src = c.toDataURL("image/png", 1.0);
+    });
+  } catch (e) { console.warn("snapshotHoursCharts failed:", e); }
+}
+
+// Anche con Ctrl/Cmd+P dal tab ore i grafici vengono snapshottati in tempo.
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeprint", snapshotHoursCharts);
 }
 
 function renderChart(rows, monthlyAllowanceH){
