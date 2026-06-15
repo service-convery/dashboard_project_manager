@@ -14,13 +14,31 @@ export const state = {
   statusChart: null,
   hoursPkgChart: null,   // grafico della vista "Consumo ore"
   hoursUsersChart: null, // grafico "Per utente" nella vista "Consumo ore"
-  clientConfig: null,    // config del cliente corrente (name, pacchettoOre, dataInizio)
+  clientConfig: null,    // config del cliente corrente (name, slug, pacchettiOre, tagViews)
+  role: null,            // "admin" | "client": gating UI (diagnostica e bucket "Altro" solo admin)
   // Filtro tabella: "week" (solo task con scadenza nella settimana) | "all" (tutti i task aperti).
   // Salvato in localStorage per persistere tra le aperture dell'artefatto.
   tableFilter: "week",
+  // Vista tag attiva: "__all__" (default) | indice numerico (in stringa) di state.clientConfig.tagViews.
+  // Validata/ripristinata da localStorage in dashboard.js (buildViewSelector), dopo che clientConfig è noto.
+  activeView: "__all__",
+  // Pacchetto attivo nel tab "Consumo ore": indice (in stringa) di pacchettiOre,
+  // oppure "__altro__" per il bucket non assegnato. Validato in dashboard.js.
+  activePackage: "0",
   // Cache dei dati renderizzati: serve per rifiltrare la tabella senza richiamare l'API.
   lastRender: null,
+  // Input grezzi (non filtrati) dell'ultimo render del tab Settimanale: per ri-renderizzare al cambio vista.
+  lastRenderInputs: null,
+  // Cache dati del tab Consumo ore (tasks + entries del range): re-render al cambio vista senza fetch.
+  hoursData: null,
+  // Tab "Mensile": offset del mese (0 = corrente), cache dati e chart status.
+  monthOffset: 0,
+  monthlyData: null,
+  monthlyStatusChart: null,
 };
+
+// Vero se la sessione è admin (gating UI: diagnostica e bucket "Altro" solo-admin).
+export function isAdmin(){ return state.role === "admin"; }
 
 try {
   const saved = window.localStorage && window.localStorage.getItem("pirelli-weekly:table-filter");

@@ -7,3 +7,6 @@
 
 # macOS
 .DS_Store
+
+# File scratch di test (non sono suite: la suite è test/*.test.mjs)
+test/*.md

@@ -1,12 +1,15 @@
 // === Entry point: orchestrazione, event listener e bootstrap ===
 import { SLUG, CLIENT_NAME_FALLBACK, EXCLUDED_STATUSES } from "./config.js";
-import { state, resetHealth } from "./state.js";
+import { state, resetHealth, isAdmin } from "./state.js";
 import { fmtDay, fmtDayYear, getWeekRange } from "./format.js";
 import { clearError, setLoading } from "./ui.js";
 import { fetchTasks, fetchEntries, fetchClosedThisWeek, fetchEstimates } from "./api.js";
-import { renderHealth, renderDiag, render, renderTable } from "./render.js";
+import { renderHealth, renderDiag, render, renderTable, rerender } from "./render.js";
 import { snapshotChartsForPrint } from "./charts.js";
-import { loadHoursView } from "./hours-package.js";
+import { loadHoursView, rerenderHoursView } from "./hours-package.js";
+import { loadMonthlyView, rerenderMonthlyView } from "./monthly.js";
+import { viewStorageKey } from "./tag-views.mjs";
+import { normalizePackages, packageStorageKey } from "./packages.mjs";
 
 async function load(){
   clearError();
@@ -72,17 +75,79 @@ document.getElementById("filterAll").addEventListener("click", () => setTableFil
 
 // === Tab: Settimanale / Consumo ore ===
 function switchView(view){
-  const weekly = view === "weekly";
-  document.getElementById("viewWeekly").classList.toggle("hide", !weekly);
-  document.getElementById("viewHours").classList.toggle("hide", weekly);
-  document.getElementById("tabWeekly").classList.toggle("active", weekly);
-  document.getElementById("tabHours").classList.toggle("active", !weekly);
-  document.getElementById("tabWeekly").setAttribute("aria-selected", String(weekly));
-  document.getElementById("tabHours").setAttribute("aria-selected", String(!weekly));
-  if (!weekly) loadHoursView(); // lazy: carica i dati al primo accesso
+  const views = { weekly: "viewWeekly", monthly: "viewMonthly", hours: "viewHours" };
+  const tabs = { weekly: "tabWeekly", monthly: "tabMonthly", hours: "tabHours" };
+  Object.entries(views).forEach(([k, id]) => document.getElementById(id).classList.toggle("hide", k !== view));
+  Object.entries(tabs).forEach(([k, id]) => {
+    const on = k === view;
+    document.getElementById(id).classList.toggle("active", on);
+    document.getElementById(id).setAttribute("aria-selected", String(on));
+  });
+  // Lazy: carica i dati al primo accesso del tab.
+  if (view === "monthly") loadMonthlyView();
+  if (view === "hours") loadHoursView();
 }
 document.getElementById("tabWeekly").addEventListener("click", () => switchView("weekly"));
+document.getElementById("tabMonthly").addEventListener("click", () => switchView("monthly"));
 document.getElementById("tabHours").addEventListener("click", () => switchView("hours"));
+
+// === Selettore "Vista per tag" (condiviso tra i due tab) ===
+// Applica lo stato attivo/selezionato a un pulsante del selettore vista.
+function applyViewBtnState(btn, on){
+  btn.classList.toggle("active", on);
+  btn.setAttribute("aria-selected", String(on));
+}
+
+// Costruito dopo che state.clientConfig è noto. Se non ci sono tagViews resta nascosto.
+function buildViewSelector(){
+  const bar = document.getElementById("viewSelectorBar");
+  if (!bar) return;
+  const cfg = state.clientConfig || {};
+  const views = Array.isArray(cfg.tagViews) ? cfg.tagViews : [];
+  if (views.length === 0) { bar.classList.add("hide"); return; }
+
+  // Ripristina la vista salvata (validata contro la config), fallback a "Tutti".
+  let saved = "__all__";
+  try {
+    const v = window.localStorage && window.localStorage.getItem(viewStorageKey(SLUG));
+    if (v === "__all__") saved = "__all__";
+    else { const idx = Number(v); if (Number.isInteger(idx) && idx >= 0 && idx < views.length) saved = String(idx); }
+  } catch (e) { /* localStorage non disponibile */ }
+  state.activeView = saved;
+
+  const group = bar.querySelector(".view-selector-group");
+  if (!group) return;
+  group.innerHTML = "";
+  const makeBtn = (label, value) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("role", "tab");
+    b.dataset.view = value;
+    b.textContent = label;
+    applyViewBtnState(b, state.activeView === value);
+    b.addEventListener("click", () => setActiveView(value));
+    return b;
+  };
+  group.appendChild(makeBtn("Tutti", "__all__"));
+  views.forEach((v, i) => group.appendChild(makeBtn(v.label || ("Vista " + (i + 1)), String(i))));
+  bar.classList.remove("hide");
+}
+
+function setActiveView(value){
+  state.activeView = value;
+  try { window.localStorage && window.localStorage.setItem(viewStorageKey(SLUG), value); }
+  catch (e) { /* ignoro */ }
+  const group = document.querySelector("#viewSelectorBar .view-selector-group");
+  if (group) group.querySelectorAll("button").forEach(b => {
+    applyViewBtnState(b, b.dataset.view === value);
+  });
+  // Aggiorna ENTRAMBI i tab dalla cache (nessuna nuova fetch): il selettore è condiviso,
+  // quindi il tab nascosto deve già riflettere la vista scelta quando vi si torna.
+  // Entrambe sono no-op se il rispettivo tab non è ancora stato renderizzato/caricato.
+  rerender();
+  rerenderHoursView();
+  rerenderMonthlyView();
+}
 
 // Export PDF: snapshot dei chart, poi window.print() (lo stylesheet @media print
 // gestisce A4 verticale, layout compatto e visualizza le img invece dei canvas).
@@ -153,7 +218,20 @@ async function bootstrap(){
     }
     document.getElementById("clientTitle").textContent = allowed.name + " · Task Settimanali";
     document.title = allowed.name + " — Task Settimanali";
-    state.clientConfig = allowed; // name + pacchettoOre + dataInizio (per la vista "Consumo ore")
+    state.clientConfig = allowed; // slug + name + pacchettiOre + tagViews (per le viste "Consumo ore" e "Settimanale")
+    state.role = me.role || null;
+    // Gating UI: per i clienti nascondo diagnostica/health e il bucket "Altro" (vedi CSS .role-client).
+    document.body.classList.toggle("role-client", !isAdmin());
+
+    // Pacchetto attivo: ripristina da localStorage, valida contro la config.
+    const pkgs = normalizePackages(allowed);
+    let savedPkg = "0";
+    try {
+      const v = window.localStorage && window.localStorage.getItem(packageStorageKey(SLUG));
+      if (v === "__altro__" && pkgs.length > 0) savedPkg = "__altro__";
+      else { const idx = Number(v); if (Number.isInteger(idx) && idx >= 0 && idx < pkgs.length) savedPkg = String(idx); }
+    } catch (e) { /* ignoro */ }
+    state.activePackage = savedPkg;
 
     // Switcher cliente: lo mostro solo se la sessione ha accesso a 2+ clienti (tipicamente admin).
     const clients = me.clients || [];
@@ -174,6 +252,7 @@ async function bootstrap(){
       document.getElementById("clientSwitch").classList.remove("hide");
     }
 
+    buildViewSelector();
     load();
   } catch (e) {
     document.getElementById("errorBox").classList.remove("hide");

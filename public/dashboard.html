@@ -35,7 +35,13 @@
 
   <div class="view-tabs" id="viewTabs" role="tablist" aria-label="Viste dashboard">
     <button class="view-tab active" id="tabWeekly" type="button" role="tab" aria-selected="true">Settimanale</button>
+    <button class="view-tab" id="tabMonthly" type="button" role="tab" aria-selected="false">Mensile</button>
     <button class="view-tab" id="tabHours" type="button" role="tab" aria-selected="false">Consumo ore</button>
+  </div>
+
+  <div id="viewSelectorBar" class="view-selector hide" role="tablist" aria-label="Vista per tag">
+    <span class="view-selector-label">Vista:</span>
+    <div class="view-selector-group filter-toggle"></div>
   </div>
 
   <div id="viewWeekly">
@@ -56,24 +62,24 @@
 
   <section class="kpi-grid" id="kpiGrid">
     <div class="kpi">
-      <span class="kpi-info" tabindex="0" data-tip="Task di primo livello della lista Pirelli.com (901202068602) con status diverso da 'da fare', 'completato', 'done', 'closed', 'chiuso'. Le subtask (parent ≠ null) sono escluse. Recupero paginato (100 task/pagina). Non dipende dalla settimana selezionata." title="Task aperti di primo livello: status ≠ da fare/completato/chiuso. Subtask escluse.">i</span>
+      <span class="kpi-info" tabindex="0" data-tip="Task attivi, con status diverso da 'da fare' e 'completato'. Non dipende dalla settimana selezionata." title="Task attivi (status diverso da 'da fare' e 'completato').">i</span>
       <div class="label">Task aperti</div><div class="value" id="kpiOpen">—</div><div class="sub">task pianificati</div>
     </div>
     <div class="kpi highlight">
-      <span class="kpi-info" tabindex="0" data-tip="Task aperti con due_date compresa tra lunedì 00:00 e domenica 23:59 della settimana selezionata (weekend inclusi)." title="Task aperti con scadenza lun-dom della settimana selezionata.">i</span>
+      <span class="kpi-info" tabindex="0" data-tip="Task attivi con scadenza tra lunedì e domenica della settimana selezionata (weekend inclusi)." title="Task con scadenza lun–dom della settimana.">i</span>
       <div class="label">Scadenze settimana</div><div class="value" id="kpiThisWeek">—</div><div class="sub">task aperti, lun–dom</div>
     </div>
     <div class="kpi">
-      <span class="kpi-info" tabindex="0" data-tip="Task di primo livello con date_done tra lunedì 00:00 e domenica 23:59 della settimana selezionata (weekend inclusi), filtrati per status di chiusura (completato, done, closed, chiuso). Subtask escluse. Recupero paginato." title="Task chiusi nella settimana selezionata, weekend inclusi (solo primo livello).">i</span>
+      <span class="kpi-info" tabindex="0" data-tip="Task completati tra lunedì e domenica della settimana selezionata (weekend inclusi)." title="Task completati nella settimana.">i</span>
       <div class="label">Completati sett.</div><div class="value" id="kpiCompleted">—</div><div class="sub">task chiusi nella settimana</div>
     </div>
     <div class="kpi">
-      <span class="kpi-info" tabindex="0" data-tip="Somma di time_estimate dei task in scadenza nella settimana + dei task completati nella settimana. Solo task con stima > 0. Stima recuperata via get_task per ogni id (cachata)." title="Somma time_estimate dei task della settimana.">i</span>
+      <span class="kpi-info" tabindex="0" data-tip="Somma delle ore stimate dei task in scadenza nella settimana e di quelli completati nella settimana (solo task con una stima)." title="Somma delle stime dei task della settimana.">i</span>
       <div class="label">Ore stimate sett.</div><div class="value" id="kpiEstimated">—</div><div class="sub" id="kpiEstimatedSub">somma stime task in scadenza</div>
     </div>
     <div class="kpi">
-      <span class="kpi-info" tabindex="0" data-tip="Somma di duration_ms delle time_entries tra lun 00:00 e dom 23:59 della settimana, ristretta ai task della board Pirelli.com. Una chiamata per assegnatario, dedupate per id entry." title="Ore tracciate sui task della board nella settimana.">i</span>
-      <div class="label">Ore tracciate</div><div class="value" id="kpiHours">—</div><div class="sub">sulla board nella settimana</div>
+      <span class="kpi-info" tabindex="0" data-tip="Ore registrate dal team sui task, tra lunedì e domenica della settimana selezionata." title="Ore tracciate sui task nella settimana.">i</span>
+      <div class="label">Ore tracciate</div><div class="value" id="kpiHours">—</div><div class="sub">sui task nella settimana</div>
     </div>
   </section>
 
@@ -84,7 +90,7 @@
         <span class="meta" id="hoursMeta">—</span>
       </div>
       <div class="chart-wrap"><canvas id="hoursChart"></canvas><img id="hoursChartPrint" class="chart-print" alt=""/></div>
-      <div class="legend"><span><i class="marker"></i> Ore tracciate sulla board Pirelli.com (lun–dom)</span></div>
+      <div class="legend"><span><i class="marker"></i> Ore tracciate sui task (lun–dom)</span></div>
       <div class="loading-mask hide" id="hoursLoading"><span class="spinner"></span>Caricamento…</div>
     </div>
     <div class="card">
@@ -122,7 +128,7 @@
           </tr>
         </thead>
         <tbody id="tasksBody">
-          <tr><td colspan="7" class="empty">Caricamento dati ClickUp…</td></tr>
+          <tr><td colspan="7" class="empty">Caricamento dati…</td></tr>
         </tbody>
       </table>
     </div>
@@ -148,6 +154,8 @@
     </button>
   </section>
   </div><!-- /viewWeekly -->
+
+  <div id="viewMonthly" class="hide" aria-label="Andamento mensile"></div>
 
   <div id="viewHours" class="hide" aria-label="Consumo pacchetto ore"></div>
 

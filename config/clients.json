@@ -6,7 +6,17 @@
   "kiboko": {
     "name": "Kiboko",
     "listId": "901216775998",
-    "pacchettoOre": { "ore": 20, "periodo": "annuale" },
-    "dataInizio": "2026-01-01"
+    "pacchettiOre": [
+      { "label": "Pacchetto ore", "periodo": "annuale", "ore": 20, "dataInizio": "2026-01-01", "tags": [] }
+    ]
+  },
+  "dss": {
+    "name": "Dolomiti SuperSummer",
+    "listId": "901216840850",
+    "pacchettiOre": [
+      { "label": "Pacchetto ore", "periodo": "stagionale", "ore": 40, "dataInizio": "2026-05-01", "dataFine": "2026-09-30", "tags": ["pacchetto ore"] }
+    ]
   }
 }
+
+

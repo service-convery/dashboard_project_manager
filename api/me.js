@@ -12,12 +12,19 @@ module.exports = (req, res) => {
     return res.status(401).json({ authenticated: false });
   }
 
-  // Campi pubblici per il client: name + config pacchetto ore. Il listId resta server-side.
+  // Campi pubblici per il client. Normalizza pacchettoOre legacy in pacchettiOre array.
+  const normPkgs = (c) => {
+    if (Array.isArray(c.pacchettiOre)) return c.pacchettiOre;
+    if (c.pacchettoOre && typeof c.pacchettoOre === 'object') {
+      return [Object.assign({ dataInizio: c.dataInizio || null }, c.pacchettoOre)];
+    }
+    return null;
+  };
   const pub = (slug, c) => ({
     slug,
     name: c.name,
-    pacchettoOre: c.pacchettoOre || null,
-    dataInizio: c.dataInizio || null
+    pacchettiOre: normPkgs(c),
+    tagViews: Array.isArray(c.tagViews) ? c.tagViews : null
   });
   let clients;
   if (s.role === 'admin') {

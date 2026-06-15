@@ -57,23 +57,22 @@ export function renderHoursChart(hoursByDay){
   });
 }
 
-export function renderStatusChart(statusCounts){
-  const ctx = document.getElementById("statusChart");
+export function renderStatusChart(statusCounts, canvasId = "statusChart", chartKey = "statusChart"){
+  const ctx = document.getElementById(canvasId);
   const labels = Array.from(statusCounts.keys());
   const data = Array.from(statusCounts.values());
   // Tinte nettamente distinte (i due viola precedenti erano indistinguibili su mobile).
-  // Il grafico mostra solo task aperti, quindi nessun conflitto con "completato".
   const palette = ["#3333FF", "#E8A830", "#2E9E5A", "#9999FF", "#D94452", "#5A6178"];
-  if (state.statusChart) state.statusChart.destroy();
+  if (state[chartKey]) state[chartKey].destroy();
   if (!labels.length) {
-    state.statusChart = new Chart(ctx, {
+    state[chartKey] = new Chart(ctx, {
       type: "doughnut",
       data: { labels: ["Nessun task"], datasets: [{ data: [1], backgroundColor: ["#E8ECF2"], borderWidth: 0 }] },
       options: { responsive: true, maintainAspectRatio: false, cutout: "65%", plugins: { legend: { display:false }, tooltip: { enabled:false } } }
     });
     return;
   }
-  state.statusChart = new Chart(ctx, {
+  state[chartKey] = new Chart(ctx, {
     type: "doughnut",
     data: {
       labels,
@@ -100,21 +99,27 @@ export function renderStatusChart(statusCounts){
   });
 }
 
-// Snapshot dei due chart canvas come PNG, settati come src dei tag <img class="chart-print">.
-// I canvas Chart.js renderano male in @media print perché il browser ne scala le dimensioni
-// fisse; usare un'immagine bitmap pre-renderizzata è molto più affidabile.
-export function snapshotChartsForPrint(){
+// Snapshot di una lista di canvas Chart.js come PNG, settati come src dei rispettivi
+// <img class="chart-print">. I canvas renderano male in @media print perché il browser
+// ne scala le dimensioni fisse; un'immagine bitmap pre-renderizzata è più affidabile.
+// `pairs`: array di [canvasId, imgId, chartInstance].
+export function snapshotCanvases(pairs){
   try {
-    const hoursCanvas = document.getElementById("hoursChart");
-    const hoursImg = document.getElementById("hoursChartPrint");
-    if (state.hoursChart) state.hoursChart.resize();
-    if (hoursCanvas && hoursImg) hoursImg.src = hoursCanvas.toDataURL("image/png", 1.0);
-
-    const statusCanvas = document.getElementById("statusChart");
-    const statusImg = document.getElementById("statusChartPrint");
-    if (state.statusChart) state.statusChart.resize();
-    if (statusCanvas && statusImg) statusImg.src = statusCanvas.toDataURL("image/png", 1.0);
+    pairs.forEach(([canvasId, imgId, chart]) => {
+      const canvas = document.getElementById(canvasId);
+      const img = document.getElementById(imgId);
+      if (chart) chart.resize();
+      if (canvas && img) img.src = canvas.toDataURL("image/png", 1.0);
+    });
   } catch (e) {
-    console.warn("snapshotChartsForPrint failed:", e);
+    console.warn("snapshotCanvases failed:", e);
   }
+}
+
+// Snapshot dei chart del tab Settimanale (ore per giorno + status).
+export function snapshotChartsForPrint(){
+  snapshotCanvases([
+    ["hoursChart", "hoursChartPrint", state.hoursChart],
+    ["statusChart", "statusChartPrint", state.statusChart]
+  ]);
 }

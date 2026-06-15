@@ -3,6 +3,8 @@ import { EXCLUDED_STATUSES } from "./config.js";
 import { state, health, retryStats } from "./state.js";
 import { escapeHtml, fmtDay, fmtHours, initials, statusClass, isClosedStatus } from "./format.js";
 import { renderHoursChart, renderStatusChart } from "./charts.js";
+import { resolveTagSet } from "./tag-views.mjs";
+import { tasksById, containerIds, effectiveTagNames } from "./packages.mjs";
 
 export function renderHealth(){
   const row = document.getElementById("healthRow");
@@ -107,7 +109,33 @@ export function renderDiag(){
   box.innerHTML = html;
 }
 
+// Set di tag della vista attiva, derivato da config + state.activeView.
+function activeTagSet(){
+  const cfg = state.clientConfig || {};
+  return resolveTagSet(cfg.tagViews, state.activeView);
+}
+
 export function render(allTasks, entries, estimates, closedThisWeek, mon, sun){
+  // Salva gli input NON filtrati: il cambio vista re-renderizza ri-filtrando questi.
+  state.lastRenderInputs = { allTasks, entries, estimates, closedThisWeek, mon, sun };
+
+  // Sub-task: escludo i padri-contenitore (diventano gruppi), conto le foglie.
+  const byId = tasksById(allTasks);
+  const containers = containerIds(allTasks);
+  allTasks = allTasks.filter(t => !containers.has(t.id));
+  closedThisWeek = (Array.isArray(closedThisWeek) ? closedThisWeek : []).filter(t => !containers.has(t.id));
+
+  // Filtro "alla sorgente": vista tag su tag EFFETTIVI (foglia eredita dal padre).
+  const tagSet = activeTagSet();
+  const matches = (t) => {
+    if (!tagSet || tagSet.size === 0) return true;
+    const names = effectiveTagNames(t, byId);
+    for (const tag of tagSet) if (names.has(tag)) return true;
+    return false;
+  };
+  allTasks = allTasks.filter(matches);
+  closedThisWeek = closedThisWeek.filter(matches);
+
   const taskIdSet = new Set(allTasks.map(t => t.id));
 
   // task aperti: escludi status "da fare", "completato" e altri stati di chiusura
@@ -315,4 +343,11 @@ export function renderTable(){
       '<td style="text-align:right;">' + hoursHtml + '</td>';
     body.appendChild(tr);
   });
+}
+
+// Ri-renderizza il tab Settimanale ri-filtrando gli ultimi input (cambio vista, niente fetch).
+export function rerender(){
+  const i = state.lastRenderInputs;
+  if (!i) return;
+  render(i.allTasks, i.entries, i.estimates, i.closedThisWeek, i.mon, i.sun);
 }

@@ -24,6 +24,14 @@ export function getWeekRange(offsetWeeks){
   return { mon, sun };
 }
 
+// Range del mese (offset 0 = mese corrente). start = primo giorno 00:00, end = ultimo giorno 23:59:59.999.
+export function getMonthRange(offsetMonths){
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth() + offsetMonths, 1, 0, 0, 0, 0);
+  const end = new Date(start.getFullYear(), start.getMonth() + 1, 0, 23, 59, 59, 999);
+  return { start, end };
+}
+
 export function initials(name){
   if (!name) return "?";
   const parts = String(name).trim().split(/\s+/);
@@ -37,6 +45,22 @@ export function fmtHours(ms){
   if (h < 1) return Math.round(h * 60) + "m";
   if (Number.isInteger(h)) return h + "h";
   return h.toFixed(1).replace(".", ",") + "h";
+}
+
+// Etichetta dello status ClickUp (oggetto {status,...} o stringa) come testo.
+export function statusText(status){
+  return (status && typeof status === "object" && status.status) ? status.status : (status || "");
+}
+
+// ms -> "Xh Ym" (ore:minuti, non decimale). Minuti omessi se zero; sotto l'ora solo minuti; 0 -> "0h".
+export function fmtHM(ms){
+  const totalMin = Math.round((Number(ms) || 0) / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h && m) return h + "h " + m + "m";
+  if (h) return h + "h";
+  if (m) return m + "m";
+  return "0h";
 }
 
 export function statusClass(s){
