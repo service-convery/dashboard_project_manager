@@ -6,7 +6,7 @@ import { MONTHS } from "./config.js";
 import { state } from "./state.js";
 import { fetchTasks, fetchEntriesRange } from "./api.js";
 import { escapeHtml, statusClass, initials } from "./format.js";
-import { aggregateByTask, aggregateByUser } from "./hours-aggregate.js";
+import { aggregateByUser } from "./hours-aggregate.js";
 import {
   tasksById, containerIds, normalizePackages, assignPackageIndex,
   accruedMsForMonth, inSeasonWindow, packageStorageKey
@@ -178,13 +178,47 @@ function renderHoursFromCache(){
     year, month, consumedMs: consumedByMonth.get(year + "-" + month) || 0
   }));
 
-  // Dettagli "Per task": raggruppati per padre (il padre fa da intestazione, non somma).
-  const taskById = new Map(tasksView.map(t => [t.id, t]));
-  const taskRows = aggregateByTask(entriesView, taskById).rows.map(r => {
-    const t = taskById.get(r.id);
-    const parent = t && t.parent != null ? byId.get(t.parent) : null;
-    return Object.assign({}, r, { parentName: parent ? parent.name : null });
+  // Dettagli "Per task": TUTTI i task del pacchetto (anche 0h / pianificati),
+  // raggruppati per padre. La colonna persone unisce assegnatari + chi ha loggato.
+  const msByTask = new Map();          // taskId -> ms totali
+  const workersByTask = new Map();     // taskId -> Map(userId -> {id, username})
+  let taskTotalMs = 0;
+  entriesView.forEach(e => {
+    const id = e.task && e.task.id;
+    if (!id) return;
+    const ms = Number(e.duration_ms) || 0;
+    msByTask.set(id, (msByTask.get(id) || 0) + ms);
+    taskTotalMs += ms;
+    const u = e.user;
+    if (u && u.id != null) {
+      if (!workersByTask.has(id)) workersByTask.set(id, new Map());
+      workersByTask.get(id).set(u.id, { id: u.id, username: u.username || u.email });
+    }
   });
+  const taskRows = tasksView.map(t => {
+    const ms = msByTask.get(t.id) || 0;
+    // Persone: assegnatari ∪ chi ha tracciato tempo (dedup per id).
+    const people = new Map();
+    (Array.isArray(t.assignees) ? t.assignees : []).forEach(a => {
+      if (a && a.id != null) people.set(a.id, { id: a.id, username: a.username || a.email });
+    });
+    (workersByTask.get(t.id) || new Map()).forEach((v, k) => people.set(k, v));
+    const parent = t.parent != null ? byId.get(t.parent) : null;
+    return {
+      id: t.id,
+      name: t.name || "(senza titolo)",
+      url: t.url || null,
+      status: t.status != null ? t.status : null,
+      assignees: [...people.values()],
+      ms,
+      pct: taskTotalMs > 0 ? (ms / taskTotalMs) * 100 : 0,
+      parentName: parent ? parent.name : null
+    };
+  }).sort((a, b) =>
+    (a.parentName || "").localeCompare(b.parentName || "") ||
+    b.ms - a.ms ||
+    a.name.localeCompare(b.name)
+  );
   const userRows = aggregateByUser(entriesView);
 
   render(container, {
@@ -232,11 +266,11 @@ function monthlyDetailTableHtml(rows, hasPkg){
 // Markup della tabella "Per task": una riga per task con ore tracciate, ordinate desc.
 function taskTableHtml(rows){
   let h = '<div class="table-wrap"><table class="tasks"><thead><tr>' +
-    '<th>Task</th><th>Stato</th><th>Assegnatari</th>' +
+    '<th>Task</th><th>Stato</th><th>Persone</th>' +
     '<th style="text-align:right;">Ore</th><th style="text-align:right;">%</th>' +
     '</tr></thead><tbody>';
   if (!rows.length) {
-    h += '<tr><td colspan="5" class="empty">Nessuna ora tracciata nel periodo.</td></tr>';
+    h += '<tr><td colspan="5" class="empty">Nessun task in questo pacchetto.</td></tr>';
   } else {
     let lastParent = " ";
     rows.forEach(r => {
