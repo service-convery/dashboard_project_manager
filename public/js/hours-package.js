@@ -24,10 +24,21 @@ function fmtNum(h){
   const r = Math.round(h * 10) / 10;
   return Number.isInteger(r) ? String(r) : r.toFixed(1).replace(".", ",");
 }
-function fmtHoursMs(ms){ return fmtNum(ms / HOUR_MS) + "h"; }
+// ms -> "Xh Ym" (ore:minuti). Minuti omessi se zero (es. "40h"); sotto l'ora
+// solo i minuti (es. "46m"); zero -> "0h". Le ore NON sono decimali: 0,8h = 48m.
+function fmtHM(ms){
+  const totalMin = Math.round((Number(ms) || 0) / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h && m) return h + "h " + m + "m";
+  if (h) return h + "h";
+  if (m) return m + "m";
+  return "0h";
+}
+function fmtHoursMs(ms){ return fmtHM(ms); }
 function fmtSignedMs(ms){
   const sign = ms < 0 ? "−" : (ms > 0 ? "+" : "");
-  return sign + fmtNum(Math.abs(ms) / HOUR_MS) + "h";
+  return sign + fmtHM(Math.abs(ms));
 }
 function fmtMonthYear(month, year){ return MONTHS[month] + " " + year; }
 function fmtDayMonthYear(d){
@@ -418,7 +429,7 @@ function renderChart(rows, monthlyAllowanceH){
         tooltip: {
           backgroundColor: "#FFFFFF", titleColor: "#1A1A2E", bodyColor: "#5A6178",
           borderColor: "#D8DCE4", borderWidth: 1, padding: 10,
-          callbacks: { label: (c) => c.dataset.label + ": " + c.parsed.y + " h" }
+          callbacks: { label: (c) => c.dataset.label + ": " + fmtHM(c.parsed.y * HOUR_MS) }
         }
       },
       scales: {
@@ -453,7 +464,7 @@ function renderUsersChart(users){
         tooltip: {
           backgroundColor: "#FFFFFF", titleColor: "#1A1A2E", bodyColor: "#5A6178",
           borderColor: "#D8DCE4", borderWidth: 1, padding: 10,
-          callbacks: { label: (c) => c.parsed.x + " h" }
+          callbacks: { label: (c) => fmtHM(c.parsed.x * HOUR_MS) }
         }
       },
       scales: {
