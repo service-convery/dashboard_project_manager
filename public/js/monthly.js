@@ -67,6 +67,11 @@ function renderMonthlyFromCache(){
   const containers = containerIds(all);
   const tagSet = activeTagSet();
 
+  // Le entry arrivano per-utente (tutto ciò che hanno tracciato): le restringo
+  // ai task DI QUESTA lista, altrimenti conterei ore di altri clienti.
+  const listIds = new Set(all.map(t => t.id));
+  const listEntries = entries.filter(e => e && e.task && listIds.has(e.task.id));
+
   const inMonth = (t) => {
     const due = t.due_date ? parseInt(t.due_date, 10) : null;
     const done = t.date_done ? parseInt(t.date_done, 10) : null;
@@ -85,11 +90,10 @@ function renderMonthlyFromCache(){
     !containers.has(t.id) && matchesTags(t) && !isDaFare(t) && inMonth(t)
   );
 
-  // Ore tracciate nel mese per task.
+  // Ore tracciate nel mese per task (solo task della lista).
   const msByTask = new Map();
-  entries.forEach(e => {
-    const id = e && e.task && e.task.id;
-    if (!id) return;
+  listEntries.forEach(e => {
+    const id = e.task.id;
     msByTask.set(id, (msByTask.get(id) || 0) + (Number(e.duration_ms) || 0));
   });
 
@@ -97,7 +101,7 @@ function renderMonthlyFromCache(){
   const total = monthTasks.length;
   const done = monthTasks.filter(isClosedStatus).length;
   const inProgress = total - done;
-  const totalWorkedMs = entries.reduce((s, e) => s + (Number(e && e.duration_ms) || 0), 0);
+  const totalWorkedMs = listEntries.reduce((s, e) => s + (Number(e.duration_ms) || 0), 0);
 
   // Distribuzione per status.
   const statusCounts = new Map();
