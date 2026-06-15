@@ -766,3 +766,6 @@ tr.task-group td { background: rgba(0,0,0,0.03); font-size: 12px; color: var(--t
 
 /* In stampa la griglia KPI del tab ore ha 3 KPI, non 5: evita colonne vuote. */
 @media print { .hours-kpi { grid-template-columns: repeat(3, 1fr) !important; } }
+
+/* Spazio sopra il box "Esporta PDF" nel tab Consumo ore. */
+#viewHours .export-banner { margin-top: 24px; }
