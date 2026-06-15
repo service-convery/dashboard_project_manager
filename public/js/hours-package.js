@@ -293,7 +293,7 @@ function monthlyDetailTableHtml(rows, hasPkg){
 function taskTableHtml(rows){
   let h = '<div class="table-wrap"><table class="tasks"><thead><tr>' +
     '<th>Task</th><th>Stato</th><th>Persone</th>' +
-    '<th style="text-align:right;">Ore</th><th style="text-align:right;">%</th>' +
+    '<th style="text-align:right;">Ore consumate</th><th style="text-align:right;">%</th>' +
     '</tr></thead><tbody>';
   if (!rows.length) {
     h += '<tr><td colspan="5" class="empty">Nessun task in questo pacchetto.</td></tr>';
