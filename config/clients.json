@@ -18,7 +18,7 @@
     ]
   },
   "q36-5": {
-    "name": "Q36-5.com",
+    "name": "Q36-5",
     "listId": "901213143143",
     "pacchettiOre": [
       { "label": "Pacchetto ore", "periodo": "annuale", "ore": 30, "dataInizio": "2025-09-01", "dataFine": "2026-07-15", "tags": ["pacchetto ore"] }
