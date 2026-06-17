@@ -3,9 +3,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   tasksById, effectiveTagNames, containerIds,
-  normalizePackages, assignPackageIndex,
+  normalizePackages, assignPackageIndex, selectViewTasks,
   accruedMsForMonth, inSeasonWindow, packageStorageKey
 } from "../public/js/packages.mjs";
+import { resolveTagSet } from "../public/js/tag-views.mjs";
 
 const HOUR_MS = 3600000;
 const task = (id, tags, parent) => ({ id, parent: parent || null, tags: (tags||[]).map(name => ({ name })) });
@@ -109,6 +110,35 @@ test("assignPackageIndex: pacchetto con tags vuoto cattura i non assegnati", () 
   ]});
   const t = task("a", ["qualsiasi"]);
   assert.equal(assignPackageIndex(t, pkgs, tasksById([t])), 1); // catch-all
+});
+
+test("selectViewTasks: senza tag set ritorna tutte le foglie del pacchetto attivo", () => {
+  const a = task("a", []), b = task("b", []), c = task("c", []);
+  const byId = tasksById([a, b, c]);
+  const assignment = new Map([["a", 0], ["b", 0], ["c", 1]]);
+  const res = selectViewTasks([a, b, c], assignment, 0, new Set(), byId);
+  assert.deepEqual(res.map(t => t.id), ["a", "b"]);
+});
+
+test("selectViewTasks: con tag set filtra alle sole foglie taggate (caso inspire, nessun pacchetto)", () => {
+  const a = task("a", ["extras-inspire25"]); // del cliente
+  const b = task("b", []);                    // task della lista, NON del cliente
+  const c = task("c", ["altro"]);             // altro tag
+  const byId = tasksById([a, b, c]);
+  // Nessun pacchetto => partitionTasks assegna tutte le foglie all'indice 0 (fallback ": 0").
+  const assignment = new Map([["a", 0], ["b", 0], ["c", 0]]);
+  const tagSet = resolveTagSet([{ label: "Sviluppo Extra", tags: ["extras-inspire25"] }], "__all__");
+  const res = selectViewTasks([a, b, c], assignment, 0, tagSet, byId);
+  assert.deepEqual(res.map(t => t.id), ["a"]);
+});
+
+test("selectViewTasks: il tag ereditato dal padre conta (sub-task)", () => {
+  const parent = task("p", ["extras-inspire25"]);
+  const child = task("c", [], "p");
+  const byId = tasksById([parent, child]);
+  const assignment = new Map([["c", 0]]); // solo la foglia
+  const res = selectViewTasks([child], assignment, 0, new Set(["extras-inspire25"]), byId);
+  assert.deepEqual(res.map(t => t.id), ["c"]);
 });
 
 const parseDate = (s) => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };

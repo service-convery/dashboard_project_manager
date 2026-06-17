@@ -10,8 +10,9 @@ import { aggregateByUser } from "./hours-aggregate.js";
 import { snapshotCanvases } from "./charts.js";
 import {
   tasksById, containerIds, normalizePackages, assignPackageIndex,
-  accruedMsForMonth, inSeasonWindow, packageStorageKey
+  accruedMsForMonth, inSeasonWindow, packageStorageKey, selectViewTasks
 } from "./packages.mjs";
+import { resolveTagSet } from "./tag-views.mjs";
 
 const HOUR_MS = 3600000;
 const USERS_DISCLAIMER =
@@ -168,9 +169,12 @@ function renderHoursFromCache(){
   const startDate = pkg ? parseDate(pkg.dataInizio) : null;
   const hasPkg = !!pkg && !!startDate;
 
-  // Task del pacchetto attivo (foglie assegnate a questo indice, o non assegnate se "Altro").
+  // Task del pacchetto attivo (foglie assegnate a questo indice, o non assegnate se "Altro"),
+  // ristrette alla vista per tag attiva. Per i clienti con SOLE tagViews e nessun pacchetto
+  // questo evita di conteggiare tutti i task della lista (vedi cliente "inspire").
   const wanted = isAltro ? null : activeIdx;
-  const tasksView = leaves.filter(t => assignment.get(t.id) === wanted);
+  const tagSet = resolveTagSet(cfg.tagViews, state.activeView);
+  const tasksView = selectViewTasks(leaves, assignment, wanted, tagSet, byId);
   const idsView = new Set(tasksView.map(t => t.id));
   const entriesView = entries.filter(e => e && e.task && idsView.has(e.task.id));
 

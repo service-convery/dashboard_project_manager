@@ -69,6 +69,21 @@ export function assignPackageIndex(task, packages, byId){
   }
   return null;
 }
+// Foglie della vista "Consumo ore" attiva: assegnate al pacchetto `wanted`
+// (indice | null per "Altro") E che matchano il tag set attivo. Un tagSet vuoto
+// non filtra (clienti senza viste per tag). I tag ereditati dal padre contano
+// (effectiveTagNames), coerentemente con Settimanale/Mensile.
+export function selectViewTasks(leaves, assignment, wanted, tagSet, byId){
+  const noTagFilter = !tagSet || tagSet.size === 0;
+  return (Array.isArray(leaves) ? leaves : []).filter(t => {
+    if (assignment.get(t.id) !== wanted) return false;
+    if (noTagFilter) return true;
+    const names = effectiveTagNames(t, byId);
+    for (const tag of tagSet) if (names.has(tag)) return true;
+    return false;
+  });
+}
+
 // Ms maturati nel mese (year, month 0-based) per il pacchetto, dato startDate (Date).
 // - mensile:    `ore` ogni mese (da dataInizio in poi, gestito dal chiamante sui mesi mostrati)
 // - annuale:    `ore` solo nel mese di dataInizio
