@@ -120,6 +120,7 @@ export function snapshotCanvases(pairs){
 export function snapshotChartsForPrint(){
   snapshotCanvases([
     ["hoursChart", "hoursChartPrint", state.hoursChart],
-    ["statusChart", "statusChartPrint", state.statusChart]
+    ["statusChart", "statusChartPrint", state.statusChart],
+    ["monthlyStatusChart", "monthlyStatusChartPrint", state.monthlyStatusChart]
   ]);
 }

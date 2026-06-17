@@ -23,6 +23,15 @@
     "pacchettiOre": [
       { "label": "Pacchetto ore", "periodo": "annuale", "ore": 30, "dataInizio": "2025-09-01", "dataFine": "2026-07-15", "tags": ["pacchetto ore"] }
     ]
+  },
+  "inspire": {
+    "name": "Inspire",
+    "listId": "901216827139",
+    "pacchettiOre": [
+      { "label": "Pacchetto ore", "periodo": "annuale", "ore": 30, "dataInizio": "2025-09-01", "dataFine": "2026-07-15", "tags": ["pacchetto ore"] }
+    ],
+    "tagViews": [
+      { "label": "Sviluppo Extra", "tags": ["extras-inspire25"] }
+    ]
   }
 }
-
