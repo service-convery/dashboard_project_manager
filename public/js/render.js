@@ -119,11 +119,12 @@ export function render(allTasks, entries, estimates, closedThisWeek, mon, sun){
   // Salva gli input NON filtrati: il cambio vista re-renderizza ri-filtrando questi.
   state.lastRenderInputs = { allTasks, entries, estimates, closedThisWeek, mon, sun };
 
-  // Sub-task: escludo i padri-contenitore (diventano gruppi), conto le foglie.
+  // Sub-task: i padri-contenitore non compaiono come righe (diventano gruppi), MA il
+  // tempo loggato direttamente su di essi è tempo reale della lista e va contato nei
+  // totali ore. Tengo quindi due insiemi: le foglie (per tabella/lista task) e tutti i
+  // task della lista (per il calcolo ore), entrambi filtrati per la vista tag attiva.
   const byId = tasksById(allTasks);
   const containers = containerIds(allTasks);
-  allTasks = allTasks.filter(t => !containers.has(t.id));
-  closedThisWeek = (Array.isArray(closedThisWeek) ? closedThisWeek : []).filter(t => !containers.has(t.id));
 
   // Filtro "alla sorgente": vista tag su tag EFFETTIVI (foglia eredita dal padre).
   const tagSet = activeTagSet();
@@ -133,10 +134,16 @@ export function render(allTasks, entries, estimates, closedThisWeek, mon, sun){
     for (const tag of tagSet) if (names.has(tag)) return true;
     return false;
   };
-  allTasks = allTasks.filter(matches);
-  closedThisWeek = closedThisWeek.filter(matches);
+  const allMatched = allTasks.filter(matches);
+  const closedMatched = (Array.isArray(closedThisWeek) ? closedThisWeek : []).filter(matches);
 
-  const taskIdSet = new Set(allTasks.map(t => t.id));
+  // Per tabella / lista task aperti: solo le foglie (i padri restano contenitori).
+  allTasks = allMatched.filter(t => !containers.has(t.id));
+  closedThisWeek = closedMatched.filter(t => !containers.has(t.id));
+
+  // Id-set per il CALCOLO ORE: TUTTI i task della lista (foglie + padri, aperti + chiusi).
+  // Così le time-entry loggate su un task-padre vengono conteggiate (prima erano perse).
+  const taskIdSet = new Set([...allMatched, ...closedMatched].map(t => t.id));
 
   // task aperti: escludi status "da fare", "completato" e altri stati di chiusura
   const openTasks = allTasks.filter(t => {
@@ -149,8 +156,6 @@ export function render(allTasks, entries, estimates, closedThisWeek, mon, sun){
   const closedTasks = Array.isArray(closedThisWeek) ? closedThisWeek : [];
   const openIds = new Set(openTasks.map(t => t.id));
   const closedUnique = closedTasks.filter(t => t && t.id && !openIds.has(t.id));
-  // assicura che gli id dei chiusi siano nel set per il calcolo ore
-  closedUnique.forEach(t => taskIdSet.add(t.id));
 
   const monMs = mon.getTime();
   const sunMs = sun.getTime();

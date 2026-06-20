@@ -373,6 +373,11 @@ export async function fetchEstimates(taskList){
 // ClickUp REST usa start_date/end_date in millisecondi UNIX.
 export async function fetchEntries(allTasks, mon, weekEnd){
   const userIds = new Set();
+  // Interroga TUTTI i membri del workspace (chiunque abbia loggato ore sui task della
+  // lista, non solo gli assegnatari), coerentemente con la vista Consumo ore. Gli
+  // assegnatari restano inclusi come fallback (es. guest non presenti in /team).
+  const members = await fetchTeamMembers();
+  members.forEach(m => { if (m && m.id != null) userIds.add(m.id); });
   allTasks.forEach(t => {
     if (Array.isArray(t.assignees)) {
       t.assignees.forEach(a => { if (a && a.id != null) userIds.add(a.id); });
