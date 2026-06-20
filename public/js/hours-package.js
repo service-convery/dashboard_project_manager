@@ -140,12 +140,15 @@ function partitionTasks(tasks, cfg){
   const leaves = tasks.filter(t => !containers.has(t.id));
   const assignment = new Map(); // taskId -> indice pacchetto | null
   let hasUnassigned = false;
-  leaves.forEach(t => {
+  // Assegno TUTTI i task, foglie E contenitori: il tempo loggato direttamente su un
+  // task-padre — che con i pacchetti è spesso IL task usato in ClickUp per l'intero
+  // pacchetto — va attribuito al pacchetto e conteggiato, non scartato.
+  tasks.forEach(t => {
     const idx = packages.length ? assignPackageIndex(t, packages, byId) : 0;
     assignment.set(t.id, idx);
     if (idx === null) hasUnassigned = true;
   });
-  return { packages, byId, leaves, assignment, hasUnassigned };
+  return { packages, byId, leaves, allTasks: tasks, assignment, hasUnassigned };
 }
 
 // Calcola il modello del pacchetto selezionato e renderizza.
@@ -157,7 +160,7 @@ function renderHoursFromCache(){
   // Memoizzata su hoursData: invalidata naturalmente quando i task vengono rifetchati.
   const part = state.hoursData.partition ||
     (state.hoursData.partition = partitionTasks(tasks, cfg));
-  const { packages, byId, leaves, assignment, hasUnassigned } = part;
+  const { packages, byId, allTasks: allListTasks, assignment, hasUnassigned } = part;
 
   // Pacchetto attivo: indice valido | "__altro__". Il bucket "Altro" è solo-admin:
   // per i clienti la vista resta sui pacchetti configurati.
@@ -169,12 +172,14 @@ function renderHoursFromCache(){
   const startDate = pkg ? parseDate(pkg.dataInizio) : null;
   const hasPkg = !!pkg && !!startDate;
 
-  // Task del pacchetto attivo (foglie assegnate a questo indice, o non assegnate se "Altro"),
-  // ristrette alla vista per tag attiva. Per i clienti con SOLE tagViews e nessun pacchetto
-  // questo evita di conteggiare tutti i task della lista (vedi cliente "inspire").
+  // Task del pacchetto attivo (assegnati a questo indice, o non assegnati se "Altro"),
+  // ristretti alla vista per tag attiva. Includo anche i task-padre (contenitori): il
+  // tempo loggato su di essi è ore reali del pacchetto e va conteggiato/mostrato. Per i
+  // clienti con SOLE tagViews e nessun pacchetto questo evita comunque di conteggiare
+  // tutti i task della lista (vedi cliente "inspire"), perché il filtro tag resta attivo.
   const wanted = isAltro ? null : activeIdx;
   const tagSet = resolveTagSet(cfg.tagViews, state.activeView);
-  const tasksView = selectViewTasks(leaves, assignment, wanted, tagSet, byId);
+  const tasksView = selectViewTasks(allListTasks, assignment, wanted, tagSet, byId);
   const idsView = new Set(tasksView.map(t => t.id));
   const entriesView = entries.filter(e => e && e.task && idsView.has(e.task.id));
 
