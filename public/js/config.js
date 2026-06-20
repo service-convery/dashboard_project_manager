@@ -4,7 +4,8 @@
 // Il listId vero resta server-side (in config/clients.json). Il browser passa solo
 // lo slug; il proxy /api/clickup risolve slug→listId e verifica autorizzazione.
 export const SLUG = (function(){
-  const m = window.location.pathname.match(/\/d\/([^\/]+)/);
+  const path = (typeof window !== "undefined" && window.location) ? window.location.pathname : "";
+  const m = path.match(/\/d\/([^\/]+)/);
   return m ? decodeURIComponent(m[1]).toLowerCase().replace(/[^a-z0-9-]/g, "") : null;
 })();
 export const CLIENT_NAME_FALLBACK = SLUG ? SLUG.charAt(0).toUpperCase() + SLUG.slice(1) : "—";
