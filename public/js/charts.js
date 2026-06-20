@@ -3,6 +3,7 @@
 // di questo modulo (gli script classici eseguono prima dei moduli deferred).
 import { DAY_LABELS } from "./config.js";
 import { state } from "./state.js";
+import { fmtHM } from "./format.js";
 
 // I grafici usano lo stesso font dell'interfaccia (Red Hat Display).
 if (typeof Chart !== "undefined" && Chart.defaults && Chart.defaults.font) {
@@ -34,7 +35,7 @@ export function renderHoursChart(hoursByDay){
         tooltip: {
           backgroundColor: "#FFFFFF", titleColor: "#1A1A2E", bodyColor: "#5A6178",
           borderColor: "#D8DCE4", borderWidth: 1, padding: 10,
-          callbacks: { label: (ctx) => ctx.parsed.y + " h" }
+          callbacks: { label: (ctx) => "Ore: " + fmtHM(ctx.parsed.y * 3600000) }
         }
       },
       scales: {

@@ -39,14 +39,6 @@ export function initials(name){
   return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
 }
 
-export function fmtHours(ms){
-  if (!ms || ms <= 0) return "0h";
-  const h = ms / 3600000;
-  if (h < 1) return Math.round(h * 60) + "m";
-  if (Number.isInteger(h)) return h + "h";
-  return h.toFixed(1).replace(".", ",") + "h";
-}
-
 // Etichetta dello status ClickUp (oggetto {status,...} o stringa) come testo.
 export function statusText(status){
   return (status && typeof status === "object" && status.status) ? status.status : (status || "");

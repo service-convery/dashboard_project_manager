@@ -1,7 +1,7 @@
 // === Rendering del DOM: salute fonti, diagnostica, KPI/grafici e tabella ===
 import { EXCLUDED_STATUSES } from "./config.js";
 import { state, health, retryStats } from "./state.js";
-import { escapeHtml, fmtDay, fmtHours, initials, statusClass, isClosedStatus } from "./format.js";
+import { escapeHtml, fmtDay, fmtHM, initials, statusClass, isClosedStatus } from "./format.js";
 import { renderHoursChart, renderStatusChart } from "./charts.js";
 import { resolveTagSet } from "./tag-views.mjs";
 import { tasksById, containerIds, effectiveTagNames } from "./packages.mjs";
@@ -209,8 +209,8 @@ export function render(allTasks, entries, estimates, closedThisWeek, mon, sun){
   document.getElementById("kpiOpen").textContent = openTasks.length;
   document.getElementById("kpiThisWeek").textContent = thisWeekCount;
   document.getElementById("kpiCompleted").textContent = closedUnique.length;
-  document.getElementById("kpiHours").textContent = fmtHours(totalMs);
-  document.getElementById("kpiEstimated").textContent = fmtHours(estimatedWeekMs);
+  document.getElementById("kpiHours").textContent = fmtHM(totalMs);
+  document.getElementById("kpiEstimated").textContent = fmtHM(estimatedWeekMs);
   // Sub-label diagnostico: dice quanti task della settimana hanno una stima impostata.
   // weekTasksTotal include sia gli aperti in scadenza sia i completati della settimana.
   const subEst = document.getElementById("kpiEstimatedSub");
@@ -325,12 +325,12 @@ export function renderTable(){
     const stHtml = '<span class="badge ' + stClass + '">' + escapeHtml(statusRaw || "—") + '</span>';
 
     const ms = hoursByTask.get(t.id) || 0;
-    const hoursHtml = '<span class="hours' + (ms === 0 ? ' zero' : '') + '">' + fmtHours(ms) + '</span>';
+    const hoursHtml = '<span class="hours' + (ms === 0 ? ' zero' : '') + '">' + fmtHM(ms) + '</span>';
 
     const estMs = (estimates && estimates.get) ? estimates.get(t.id) : null;
     const estHtml = (estMs == null || isNaN(estMs))
       ? '<span class="hours zero">—</span>'
-      : '<span class="hours">' + fmtHours(estMs) + '</span>';
+      : '<span class="hours">' + fmtHM(estMs) + '</span>';
 
     tr.innerHTML =
       '<td><div class="task-name"><a href="' + escapeHtml(t.url || "#") + '" target="_blank" rel="noopener">' + escapeHtml(t.name || "(senza titolo)") + '</a></div>' +
