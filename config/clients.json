@@ -27,9 +27,9 @@
   "inspire": {
     "name": "Inspire",
     "listId": "901216827139",
-    "tagViews": [
+    "tagViews": [],
+    "entryTagViews": [
       { "label": "Sviluppo Extra", "tags": ["extras-inspire25"] }
-      
     ]
   }
 }

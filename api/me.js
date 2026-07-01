@@ -24,7 +24,8 @@ module.exports = (req, res) => {
     slug,
     name: c.name,
     pacchettiOre: normPkgs(c),
-    tagViews: Array.isArray(c.tagViews) ? c.tagViews : null
+    tagViews: Array.isArray(c.tagViews) ? c.tagViews : null,
+    entryTagViews: Array.isArray(c.entryTagViews) ? c.entryTagViews : null
   });
   let clients;
   if (s.role === 'admin') {

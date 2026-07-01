@@ -3,8 +3,8 @@ import { EXCLUDED_STATUSES } from "./config.js";
 import { state, health, retryStats } from "./state.js";
 import { escapeHtml, fmtDay, fmtHM, initials, statusClass, isClosedStatus } from "./format.js";
 import { renderHoursChart, renderStatusChart } from "./charts.js";
-import { resolveTagSet } from "./tag-views.mjs";
-import { tasksById, containerIds, effectiveTagNames } from "./packages.mjs";
+import { resolveView, combinedViews, viewFilter } from "./tag-views.mjs";
+import { tasksById, containerIds } from "./packages.mjs";
 
 export function renderHealth(){
   const row = document.getElementById("healthRow");
@@ -109,10 +109,10 @@ export function renderDiag(){
   box.innerHTML = html;
 }
 
-// Set di tag della vista attiva, derivato da config + state.activeView.
-function activeTagSet(){
+// Vista attiva risolta (kind + tags) da config + state.activeView.
+function activeView(){
   const cfg = state.clientConfig || {};
-  return resolveTagSet(cfg.tagViews, state.activeView);
+  return resolveView(combinedViews(cfg), state.activeView);
 }
 
 export function render(allTasks, entries, estimates, closedThisWeek, mon, sun){
@@ -126,14 +126,11 @@ export function render(allTasks, entries, estimates, closedThisWeek, mon, sun){
   const byId = tasksById(allTasks);
   const containers = containerIds(allTasks);
 
-  // Filtro "alla sorgente": vista tag su tag EFFETTIVI (foglia eredita dal padre).
-  const tagSet = activeTagSet();
-  const matches = (t) => {
-    if (!tagSet || tagSet.size === 0) return true;
-    const names = effectiveTagNames(t, byId);
-    for (const tag of tagSet) if (names.has(tag)) return true;
-    return false;
-  };
+  // Filtro "alla sorgente" secondo il tipo di vista attiva (vedi viewFilter):
+  // "all" nessun filtro · "task" tag effettivi del task · "entry" task con ore taggate,
+  // con le entry (per le ore) ristrette alle sole taggate.
+  const view = activeView();
+  const { taskMatches: matches, scopedEntries } = viewFilter(view, entries, byId);
   const allMatched = allTasks.filter(matches);
   const closedMatched = (Array.isArray(closedThisWeek) ? closedThisWeek : []).filter(matches);
 
@@ -192,8 +189,9 @@ export function render(allTasks, entries, estimates, closedThisWeek, mon, sun){
     }
   });
 
-  // time entries della settimana relative ai task della lista
-  const ourEntries = entries.filter(e => e && e.task && taskIdSet.has(e.task.id));
+  // time entries della settimana relative ai task della lista (in vista "entry"
+  // sono già ristrette alle sole entry taggate, così le ore riflettono l'extra).
+  const ourEntries = scopedEntries.filter(e => e && e.task && taskIdSet.has(e.task.id));
   const hoursByDay = [0,0,0,0,0,0,0]; // lun..dom
   const hoursByTask = new Map();
   let totalMs = 0;

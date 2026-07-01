@@ -120,16 +120,20 @@ test("selectViewTasks: senza tag set ritorna tutte le foglie del pacchetto attiv
   assert.deepEqual(res.map(t => t.id), ["a", "b"]);
 });
 
-test("selectViewTasks: con tag set filtra alle sole foglie taggate (caso inspire, nessun pacchetto)", () => {
-  const a = task("a", ["extras-inspire25"]); // del cliente
-  const b = task("b", []);                    // task della lista, NON del cliente
+test("selectViewTasks: la vista 'Sviluppo Extra' filtra alle sole foglie taggate (caso inspire, nessun pacchetto)", () => {
+  const a = task("a", ["extras-inspire25"]); // task extra del cliente
+  const b = task("b", []);                    // task della lista senza tag
   const c = task("c", ["altro"]);             // altro tag
   const byId = tasksById([a, b, c]);
   // Nessun pacchetto => partitionTasks assegna tutte le foglie all'indice 0 (fallback ": 0").
   const assignment = new Map([["a", 0], ["b", 0], ["c", 0]]);
-  const tagSet = resolveTagSet([{ label: "Sviluppo Extra", tags: ["extras-inspire25"] }], "__all__");
-  const res = selectViewTasks([a, b, c], assignment, 0, tagSet, byId);
-  assert.deepEqual(res.map(t => t.id), ["a"]);
+  const views = [{ label: "Sviluppo Extra", tags: ["extras-inspire25"] }];
+  // Vista "Sviluppo Extra" selezionata (indice 0): filtra al solo task taggato.
+  const filtered = selectViewTasks([a, b, c], assignment, 0, resolveTagSet(views, "0"), byId);
+  assert.deepEqual(filtered.map(t => t.id), ["a"]);
+  // "Tutti" (__all__): nessun filtro, mostra l'intera lista.
+  const all = selectViewTasks([a, b, c], assignment, 0, resolveTagSet(views, "__all__"), byId);
+  assert.deepEqual(all.map(t => t.id), ["a", "b", "c"]);
 });
 
 test("selectViewTasks: il tag ereditato dal padre conta (sub-task)", () => {
