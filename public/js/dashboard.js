@@ -8,7 +8,7 @@ import { renderHealth, renderDiag, render, renderTable, rerender } from "./rende
 import { snapshotChartsForPrint } from "./charts.js";
 import { loadHoursView, rerenderHoursView } from "./hours-package.js";
 import { loadMonthlyView, rerenderMonthlyView } from "./monthly.js";
-import { viewStorageKey } from "./tag-views.mjs";
+import { viewStorageKey, combinedViews } from "./tag-views.mjs";
 import { normalizePackages, packageStorageKey } from "./packages.mjs";
 
 async function load(){
@@ -103,7 +103,9 @@ function buildViewSelector(){
   const bar = document.getElementById("viewSelectorBar");
   if (!bar) return;
   const cfg = state.clientConfig || {};
-  const views = Array.isArray(cfg.tagViews) ? cfg.tagViews : [];
+  // Lista combinata: viste su tag-task (cfg.tagViews) + viste su tag-entry
+  // (cfg.entryTagViews). L'indice salvato referenzia questa lista.
+  const views = combinedViews(cfg);
   if (views.length === 0) { bar.classList.add("hide"); return; }
 
   // Ripristina la vista salvata (validata contro la config), fallback a "Tutti".

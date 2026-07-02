@@ -7,15 +7,15 @@ import { state } from "./state.js";
 import { fetchTasks, fetchClosedThisWeek, fetchEntriesRange } from "./api.js";
 import { escapeHtml, statusClass, statusText, initials, isClosedStatus, fmtDayYear, fmtHM, getMonthRange } from "./format.js";
 import { renderStatusChart, snapshotChartsForPrint } from "./charts.js";
-import { resolveTagSet } from "./tag-views.mjs";
-import { tasksById, containerIds, effectiveTagNames } from "./packages.mjs";
+import { resolveView, combinedViews, viewFilter } from "./tag-views.mjs";
+import { tasksById, containerIds } from "./packages.mjs";
 
 let loaded = false; // lazy-load: la vista si carica una sola volta
 
-// Set di tag della vista attiva (coerente con gli altri tab).
-function activeTagSet(){
+// Vista attiva risolta (kind + tags), coerente con gli altri tab.
+function activeView(){
   const cfg = state.clientConfig || {};
-  return resolveTagSet(cfg.tagViews, state.activeView);
+  return resolveView(combinedViews(cfg), state.activeView);
 }
 
 export async function loadMonthlyView(){
@@ -65,12 +65,15 @@ function renderMonthlyFromCache(){
   const all = [...byIdAll.values()];
   const byId = tasksById(all);
   const containers = containerIds(all);
-  const tagSet = activeTagSet();
+  const view = activeView();
 
   // Le entry arrivano per-utente (tutto ciò che hanno tracciato): le restringo
   // ai task DI QUESTA lista, altrimenti conterei ore di altri clienti.
   const listIds = new Set(all.map(t => t.id));
   const listEntries = entries.filter(e => e && e.task && listIds.has(e.task.id));
+  // Filtro per tipo di vista (vedi viewFilter): in vista "entry" le ore contano solo
+  // le entry taggate (scopedListEntries).
+  const { taskMatches: matchesView, scopedEntries: scopedListEntries } = viewFilter(view, listEntries, byId);
 
   const inMonth = (t) => {
     const due = t.due_date ? parseInt(t.due_date, 10) : null;
@@ -78,21 +81,15 @@ function renderMonthlyFromCache(){
     return (due != null && due >= startMs && due <= endMs) ||
            (done != null && done >= startMs && done <= endMs);
   };
-  const matchesTags = (t) => {
-    if (!tagSet || tagSet.size === 0) return true;
-    const names = effectiveTagNames(t, byId);
-    for (const tag of tagSet) if (names.has(tag)) return true;
-    return false;
-  };
 
-  // Task del mese: foglie, vista-tag match, status ≠ "da fare", nel mese.
+  // Task del mese: foglie, vista match, status ≠ "da fare", nel mese.
   const monthTasks = all.filter(t =>
-    !containers.has(t.id) && matchesTags(t) && !isDaFare(t) && inMonth(t)
+    !containers.has(t.id) && matchesView(t) && !isDaFare(t) && inMonth(t)
   );
 
-  // Ore tracciate nel mese per task (solo task della lista).
+  // Ore tracciate nel mese per task (solo task della lista; in vista "entry" solo extra).
   const msByTask = new Map();
-  listEntries.forEach(e => {
+  scopedListEntries.forEach(e => {
     const id = e.task.id;
     msByTask.set(id, (msByTask.get(id) || 0) + (Number(e.duration_ms) || 0));
   });
@@ -101,7 +98,7 @@ function renderMonthlyFromCache(){
   const total = monthTasks.length;
   const done = monthTasks.filter(isClosedStatus).length;
   const inProgress = total - done;
-  const totalWorkedMs = listEntries.reduce((s, e) => s + (Number(e.duration_ms) || 0), 0);
+  const totalWorkedMs = scopedListEntries.reduce((s, e) => s + (Number(e.duration_ms) || 0), 0);
 
   // Distribuzione per status.
   const statusCounts = new Map();

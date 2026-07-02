@@ -12,7 +12,7 @@ import {
   tasksById, containerIds, normalizePackages, assignPackageIndex,
   accruedMsForMonth, inSeasonWindow, packageStorageKey, selectViewTasks
 } from "./packages.mjs";
-import { resolveTagSet } from "./tag-views.mjs";
+import { resolveView, combinedViews, entryMatchesTags } from "./tag-views.mjs";
 
 const HOUR_MS = 3600000;
 const USERS_DISCLAIMER =
@@ -172,16 +172,27 @@ function renderHoursFromCache(){
   const startDate = pkg ? parseDate(pkg.dataInizio) : null;
   const hasPkg = !!pkg && !!startDate;
 
-  // Task del pacchetto attivo (assegnati a questo indice, o non assegnati se "Altro"),
-  // ristretti alla vista per tag attiva. Includo anche i task-padre (contenitori): il
-  // tempo loggato su di essi è ore reali del pacchetto e va conteggiato/mostrato. Per i
-  // clienti con SOLE tagViews e nessun pacchetto questo evita comunque di conteggiare
-  // tutti i task della lista (vedi cliente "inspire"), perché il filtro tag resta attivo.
+  // Task/entry del pacchetto attivo (assegnati a questo indice, o non assegnati se
+  // "Altro"), ristretti alla vista attiva. Includo anche i task-padre (contenitori):
+  // il tempo loggato su di essi è ore reali del pacchetto e va conteggiato/mostrato.
   const wanted = isAltro ? null : activeIdx;
-  const tagSet = resolveTagSet(cfg.tagViews, state.activeView);
-  const tasksView = selectViewTasks(allListTasks, assignment, wanted, tagSet, byId);
-  const idsView = new Set(tasksView.map(t => t.id));
-  const entriesView = entries.filter(e => e && e.task && idsView.has(e.task.id));
+  const view = resolveView(combinedViews(cfg), state.activeView);
+  let tasksView, entriesView;
+  if (view.kind === "entry") {
+    // Vista su tag delle TIME ENTRY (es. "Sviluppo Extra" di Inspire): filtro le ORE
+    // per tag della entry e da queste derivo i task. Un task "misto" contribuisce solo
+    // con le sue ore taggate, non con il suo totale (niente over-counting).
+    entriesView = entries.filter(e =>
+      e && e.task && assignment.get(e.task.id) === wanted && entryMatchesTags(e, view.tags));
+    const idsView = new Set(entriesView.map(e => e.task.id));
+    tasksView = allListTasks.filter(t => idsView.has(t.id) && assignment.get(t.id) === wanted);
+  } else {
+    // Viste "Tutti"/tag-task: seleziono i task (per pacchetto + eventuale tag del task)
+    // e prendo tutte le loro entry. Per "Tutti" view.tags è un Set vuoto (nessun filtro).
+    tasksView = selectViewTasks(allListTasks, assignment, wanted, view.tags, byId);
+    const idsView = new Set(tasksView.map(t => t.id));
+    entriesView = entries.filter(e => e && e.task && idsView.has(e.task.id));
+  }
 
   // Mesi: per stagionale limitati alla finestra; altrimenti dal range dati.
   let months = monthList(hasPkg ? startDate : rangeStart, now);
