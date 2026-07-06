@@ -82,10 +82,18 @@ function renderMonthlyFromCache(){
            (done != null && done >= startMs && done <= endMs);
   };
 
-  // Task del mese: foglie, vista match, status ≠ "da fare", nel mese.
-  const monthTasks = all.filter(t =>
-    !containers.has(t.id) && matchesView(t) && !isDaFare(t) && inMonth(t)
-  );
+  // Task del mese: sempre foglie e coerenti con la vista attiva.
+  // - Viste "entry" (ore taggate, es. "Sviluppo Extra"): mostro i task che hanno
+  //   ricevuto ore col tag NEL MESE — matchesView deriva proprio dalle entry taggate
+  //   del mese — a prescindere da scadenza/completamento, così le ore taggate sono
+  //   sempre attribuibili a un task in tabella.
+  // - Viste "Tutti"/"task": task rilevanti per il mese (status ≠ "da fare" e con
+  //   scadenza o completamento nel mese).
+  const monthTasks = all.filter(t => {
+    if (containers.has(t.id) || !matchesView(t)) return false;
+    if (view.kind === "entry") return true;
+    return !isDaFare(t) && inMonth(t);
+  });
 
   // Ore tracciate nel mese per task (solo task della lista; in vista "entry" solo extra).
   const msByTask = new Map();
