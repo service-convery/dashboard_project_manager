@@ -78,18 +78,64 @@ module.exports = async (req, res) => {
     return res.status(403).json({ error: 'Accesso non consentito a questo cliente' });
   }
 
+  // listId può essere una singola stringa o un array di ID (una dashboard che
+  // aggrega più liste ClickUp). Normalizzo sempre ad array per uniformare.
+  const listIds = (Array.isArray(client.listId) ? client.listId : [client.listId])
+    .filter(id => id != null && id !== '')
+    .map(String);
+
+  // Cache breve lato Vercel: 30 secondi è un buon compromesso (il dashboard ricarica
+  // ogni volta che lo apri, ma se più persone aprono nello stesso minuto risparmiamo).
+  // Vale per tutte le risposte da qui in poi (le early-return di auth sono già passate).
+  res.setHeader('Cache-Control', 'private, max-age=30');
+
   const endpoint = String(req.query.endpoint || '');
   let url;
 
   if (endpoint === 'tasks') {
+    if (listIds.length === 0) {
+      return res.status(500).json({ error: 'listId non configurato per questo cliente' });
+    }
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(req.query)) {
       if (ALLOWED_TASKS_PARAMS.has(k) && v != null && v !== '') {
         qs.append(k, String(v));
       }
     }
-    url = CLICKUP_BASE + '/list/' + encodeURIComponent(client.listId) + '/task' +
-          (qs.toString() ? '?' + qs.toString() : '');
+    const suffix = '/task' + (qs.toString() ? '?' + qs.toString() : '');
+
+    // Una lista sola: comportamento storico, rispondo con la shape ClickUp così com'è.
+    if (listIds.length === 1) {
+      const one = await callClickUp(CLICKUP_BASE + '/list/' + encodeURIComponent(listIds[0]) + suffix);
+      return res.status(one.status).json(one.body);
+    }
+
+    // Più liste: interrogo ogni lista sulla stessa pagina e fondo i task in un'unica
+    // risposta { tasks: [...] }, deduplicando per id. Il frontend pagina finché una
+    // pagina torna meno di PAGE_SIZE elementi: dato che concateno, mi fermo solo quando
+    // TUTTE le liste hanno esaurito le pagine — nessun task perso.
+    const results = await Promise.all(
+      listIds.map(id => callClickUp(CLICKUP_BASE + '/list/' + encodeURIComponent(id) + suffix))
+    );
+    const failed = results.find(r => r.status < 200 || r.status >= 300);
+    if (failed) {
+      return res.status(failed.status).json(failed.body);
+    }
+    const seen = new Set();
+    const merged = [];
+    let lastPage = true;
+    for (const r of results) {
+      const b = r.body || {};
+      const tasks = Array.isArray(b.tasks) ? b.tasks : [];
+      for (const t of tasks) {
+        if (!t || t.id == null) continue;
+        if (seen.has(t.id)) continue;
+        seen.add(t.id);
+        merged.push(t);
+      }
+      if (b.last_page === false) lastPage = false;
+    }
+    return res.status(200).json({ tasks: merged, last_page: lastPage });
   } else if (endpoint === 'time-entries') {
     const teamId = process.env.CLICKUP_TEAM_ID;
     if (!teamId) return res.status(500).json({ error: 'CLICKUP_TEAM_ID non configurato' });
@@ -130,8 +176,5 @@ module.exports = async (req, res) => {
     body = { members };
   }
 
-  // Cache breve lato Vercel: 30 secondi è un buon compromesso (il dashboard ricarica
-  // ogni volta che lo apri, ma se più persone aprono nello stesso minuto risparmiamo).
-  res.setHeader('Cache-Control', 'private, max-age=30');
   res.status(r.status).json(body);
 };

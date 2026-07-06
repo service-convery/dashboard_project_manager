@@ -1,9 +1,14 @@
 {
-  "_comment": "File di esempio. Copia in clients.json e personalizza. Ogni chiave e' lo slug del cliente. 'periodo' ammette: mensile | annuale | stagionale (stagionale richiede dataInizio e dataFine).",
+  "_comment": "File di esempio. Copia in clients.json e personalizza. Ogni chiave e' lo slug del cliente. 'periodo' ammette: mensile | annuale | stagionale (stagionale richiede dataInizio e dataFine). 'listId' puo' essere una singola stringa oppure un array di ID per aggregare piu' liste ClickUp nella stessa dashboard.",
 
   "clienteMinimo": {
     "name": "Nome Cliente",
     "listId": "901200000000"
+  },
+
+  "clienteMultiLista": {
+    "name": "Nome Cliente",
+    "listId": ["901200000000", "901200000001"]
   },
 
   "clienteConPacchetto": {
