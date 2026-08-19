@@ -21,7 +21,7 @@
     "name": "Q36-5",
     "listId": "901213143143",
     "pacchettiOre": [
-      { "label": "Pacchetto ore", "periodo": "annuale", "ore": 30, "dataInizio": "2025-09-01", "dataFine": "2026-07-15", "tags": ["pacchetto ore"] }
+      { "label": "Pacchetto ore", "periodo": "annuale", "ore": 48, "dataInizio": "2026-07-01", "dataFine": "2027-07-31", "tags": ["pacchetto ore"] }
     ]
   },
   "inspire": {
