@@ -197,7 +197,16 @@ function renderHoursFromCache(){
   // Mesi: per stagionale limitati alla finestra; altrimenti dal range dati.
   let months = monthList(hasPkg ? startDate : rangeStart, now);
   if (hasPkg && pkg.periodo === "stagionale") {
-    months = months.filter(({ year, month }) => inSeasonWindow(pkg, new Date(year, month, 15)));
+    // Il mese va incluso se si sovrappone anche solo in parte alla stagione.
+    // Con una data d'inizio al 31 luglio, il 15 luglio sarebbe fuori finestra
+    // e farebbe sparire l'accredito iniziale del pacchetto.
+    const endDate = parseDate(pkg.dataFine);
+    months = months.filter(({ year, month }) => {
+      const monthStart = new Date(year, month, 1, 0, 0, 0, 0);
+      const monthEnd = new Date(year, month + 1, 0, 23, 59, 59, 999);
+      return monthEnd.getTime() >= startDate.getTime() &&
+        (!endDate || monthStart.getTime() <= endDate.getTime());
+    });
   }
 
   // Consumo per mese del pacchetto attivo (entro la finestra per lo stagionale).
