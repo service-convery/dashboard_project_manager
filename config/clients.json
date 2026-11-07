@@ -14,7 +14,9 @@
     "name": "Dolomiti SuperSummer",
     "listId": "901216840850",
     "pacchettiOre": [
-      { "label": "Pacchetto ore", "periodo": "stagionale", "ore": 40, "dataInizio": "2026-05-01", "dataFine": "2026-09-30", "tags": ["pacchetto ore"] }
+      { "label": "Pacchetto Marketing", "periodo": "stagionale", "ore": 167, "dataInizio": "2026-07-31", "dataFine": "2027-04-30", "tags": ["pacchetto_ore_marketing"] },
+      { "label": "Pacchetto Digital", "periodo": "stagionale", "ore": 256, "dataInizio": "2026-09-01", "dataFine": "2027-04-30", "tags": ["pacchetto_ore_digital"] },
+      { "label": "Pacchetto Tracking & Manutenzione", "periodo": "stagionale", "ore": 64, "dataInizio": "2026-09-01", "dataFine": "2027-04-30", "tags": ["pacchetto_ore_tracking"] }
     ]
   },
   "q36-5": {
