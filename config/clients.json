@@ -11,8 +11,8 @@
     ]
   },
   "dss": {
-    "name": "Dolomiti SuperSummer",
-    "listId": "901216840850",
+    "name": "Dolomiti Superski",
+    "listId": "901216840835",
     "pacchettiOre": [
       { "label": "Pacchetto Marketing", "periodo": "stagionale", "ore": 167, "dataInizio": "2026-07-31", "dataFine": "2027-04-30", "tags": ["pacchetto_ore_marketing"] },
       { "label": "Pacchetto Digital", "periodo": "stagionale", "ore": 256, "dataInizio": "2026-09-01", "dataFine": "2027-04-30", "tags": ["pacchetto_ore_digital"] },
@@ -25,14 +25,6 @@
     "pacchettiOre": [
       { "label": "01/2026", "periodo": "annuale", "ore": 48, "dataInizio": "2026-07-01", "dataFine": "2026-09-30", "tags": ["pacchetto ore"] },
       { "label": "02/2026", "periodo": "annuale", "ore": 48, "dataInizio": "2026-10-01", "dataFine": "2026-12-31", "tags": ["pacchetto ore 2"] }
-    ]
-  },
-  "inspire": {
-    "name": "Inspire",
-    "listId": ["901216827139", "901212829320"],
-    "tagViews": [],
-    "entryTagViews": [
-      { "label": "Sviluppo Extra", "tags": ["extras-inspire25"] }
     ]
   }
 }
