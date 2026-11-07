@@ -26,5 +26,19 @@
       { "label": "01/2026", "periodo": "annuale", "ore": 48, "dataInizio": "2026-07-01", "dataFine": "2026-09-30", "tags": ["pacchetto ore"] },
       { "label": "02/2026", "periodo": "annuale", "ore": 48, "dataInizio": "2026-10-01", "dataFine": "2026-12-31", "tags": ["pacchetto ore 2"] }
     ]
+  },
+  "hd-salento": {
+    "name": "Hd Salento",
+    "listId": "216463440",
+    "pacchettiOre": [
+      { "label": "01/2026", "periodo": "annuale", "ore": 68, "dataInizio": "2026-01-01", "dataFine": "2026-12-31", "tags": ["pacchetto ore"] }
+      ]
+  },
+  "garda-trentino": {
+    "name": "Garda Trentino",
+    "listId": "901002557485",
+    "pacchettiOre": [
+      { "label": "01/2026", "periodo": "annuale", "ore": 204, "dataInizio": "2026-01-01", "dataFine": "2026-12-31", "tags": ["pacchetto ore"] }
+      ]
   }
 }
